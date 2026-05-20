@@ -1,0 +1,13 @@
+.vscode/
+.direnv/
+node_modules/
+dist-newstyle/
+*.local.md
+.hspec-failures
+.envrc.local
+build-and-deploy.sh
+result
+result-*
+*.code-workspace
+.direnv
+.local

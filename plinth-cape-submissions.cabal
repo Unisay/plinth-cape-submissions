@@ -1,0 +1,173 @@
+cabal-version: 3.4
+name:          plinth-cape-submissions
+version:       1.0.0
+synopsis:      Plinth source tree for UPLC-CAPE benchmark submissions
+description:
+  Plinth (PlutusTx) source for the benchmark scenarios measured by the
+  UPLC-CAPE framework (https://github.com/IntersectMBO/UPLC-CAPE).
+  Builds @.uplc@ artefacts that are committed into a sibling UPLC-CAPE
+  checkout under @submissions/<scenario>/Plinth_<ver>_Unisay/@.
+
+author:        UPLC-CAPE Project
+maintainer:    UPLC-CAPE Project
+category:      Blockchain
+license:       Apache-2.0
+
+flag preview
+  description:
+    Enable Preview.* modules (requires plutus-tx-plugin with BuiltinCasing support)
+
+  default:     False
+  manual:      True
+
+common common-deps
+  build-depends:
+    , base               >=4.16
+    , bytestring
+    , mtl
+    , plutus-core        ^>=1.45
+    , plutus-ledger-api  ^>=1.45
+    , plutus-tx          ^>=1.45
+    , plutus-tx-plugin   ^>=1.45
+    , relude             ^>=1.2.2
+    , text
+
+common common-language-base
+  ghc-options:
+    -Wall -Wcompat -Wincomplete-uni-patterns -Wredundant-constraints
+    -Wmissing-export-lists -Wmissing-deriving-strategies
+    -Wpartial-fields
+
+  default-language:   Haskell2010
+  mixins:
+    base hiding (Prelude),
+    relude (Relude as Prelude)
+
+  default-extensions:
+    BangPatterns
+    BlockArguments
+    DataKinds
+    DeriveAnyClass
+    DeriveGeneric
+    DerivingStrategies
+    FlexibleContexts
+    FlexibleInstances
+    GeneralizedNewtypeDeriving
+    ImportQualifiedPost
+    LambdaCase
+    MultiParamTypeClasses
+    MultiWayIf
+    NamedFieldPuns
+    NoImplicitPrelude
+    NumericUnderscores
+    OverloadedStrings
+    PatternSynonyms
+    QuasiQuotes
+    ScopedTypeVariables
+    Strict
+    TemplateHaskell
+    TypeApplications
+    TypeFamilies
+    UndecidableInstances
+    ViewPatterns
+
+common common-language
+  import: common-language-base
+  import: common-deps
+
+-- Plinth validator sources for every UPLC-CAPE benchmark scenario.
+-- Compiled at the Plinth/plutus-tx-plugin version pinned in cabal.project.
+library
+  import:          common-language
+  exposed-modules:
+    Cape.WritePlc
+    Ecd
+    Factorial
+    Fibonacci
+    FibonacciIterative
+    HTLC
+    HTLC.Fixture
+    LinearVesting
+    LinearVesting.Fixture
+    TwoPartyEscrow
+    TwoPartyEscrow.Fixture
+
+  build-depends:
+    , directory
+    , filepath
+    , plutus-core
+    , plutus-tx
+    , plutus-tx-plugin
+
+  hs-source-dirs:  lib
+
+-- Preview modules: re-compile every validator with BuiltinCasing enabled.
+-- Build with: cabal --project-file=cabal.project.preview -f preview build all
+library plinth-cape-submissions-preview
+  import:          common-language
+  visibility:      private
+
+  if !flag(preview)
+    buildable: False
+
+  exposed-modules:
+    Preview.Ecd
+    Preview.Factorial
+    Preview.Fibonacci
+    Preview.FibonacciIterative
+    Preview.HTLC
+    Preview.LinearVesting
+    Preview.TwoPartyEscrow
+
+  other-modules:
+    Ecd
+    Factorial
+    Fibonacci
+    FibonacciIterative
+    HTLC
+    LinearVesting
+    TwoPartyEscrow
+    TwoPartyEscrow.Fixture
+
+  build-depends:
+    , plinth-cape-submissions
+    , plutus-core
+    , plutus-tx
+    , plutus-tx-plugin
+
+  hs-source-dirs:  lib
+
+-- Plinth submissions generator (production line, currently Plinth 1.45).
+-- Writes only the production @.uplc@ paths. Set @CAPE_REPO@ to the path
+-- of a sibling UPLC-CAPE checkout (defaults to @../UPLC-CAPE@).
+--   CAPE_REPO=../UPLC-CAPE cabal run plinth-submissions
+executable plinth-submissions
+  import:         common-language
+  main-is:        Main.hs
+  build-depends:
+    , plinth-cape-submissions
+    , plutus-core
+    , plutus-tx
+    , plutus-tx-plugin
+
+  hs-source-dirs: plinth-submissions-app
+
+-- Plinth submissions generator (preview line, currently Plinth 1.61 +
+-- BuiltinCasing). Writes only the preview @.uplc@ paths. Run with:
+--   CAPE_REPO=../UPLC-CAPE cabal run \
+--     --project-file=cabal.project.preview -f preview plinth-submissions-preview
+executable plinth-submissions-preview
+  import:         common-language
+  main-is:        Main.hs
+
+  if !flag(preview)
+    buildable: False
+
+  build-depends:
+    , plinth-cape-submissions
+    , plinth-cape-submissions:plinth-cape-submissions-preview
+    , plutus-core
+    , plutus-tx
+    , plutus-tx-plugin
+
+  hs-source-dirs: plinth-submissions-preview-app
