@@ -10,12 +10,25 @@ repository cardano-haskell-packages
     d4a35cd3121aa00d18544bb0ac01c3e1691d618f462c46129271bccf39f7e8ee
 
 index-state:
-  -- Using index-state available in haskell.nix binary cache (from nix flake update)
   , hackage.haskell.org 2025-10-17T00:26:22Z
-  -- Bump this if you need newer packages from CHaP
-  , cardano-haskell-packages 2025-10-17T15:10:00Z
+  , cardano-haskell-packages 2026-05-15T00:00:00Z
 
 packages:
   ./.
+
+-- Pin plutus-tx-plugin to the latest released line (1.64). Constraints are
+-- explicit so the haskell.nix shell's globally installed 1.45 cannot win
+-- the solve.
+constraints:
+    plutus-core       ^>=1.64
+  , plutus-ledger-api ^>=1.64
+  , plutus-tx         ^>=1.64
+  , plutus-tx-plugin  ^>=1.64
+
+allow-newer:
+    plinth-cape-submissions:plutus-core
+  , plinth-cape-submissions:plutus-ledger-api
+  , plinth-cape-submissions:plutus-tx
+  , plinth-cape-submissions:plutus-tx-plugin
 
 tests: true

@@ -7,12 +7,15 @@ artefacts that are committed into a sibling `UPLC-CAPE` checkout under
 
 ## Branches
 
-- **`main`** — tracks the latest released Plinth (currently 1.64.0.0 once
-  bumped); production line.
-- **`plinth-1.45`** — frozen snapshot that produces byte-identical UPLC for
-  every `Plinth_1.45.0.0_Unisay/*.uplc` currently in UPLC-CAPE.
-- **`plinth-1.61`** — frozen snapshot that produces byte-identical UPLC for
-  every `Plinth_1.61.0.0_Unisay/*.uplc` currently in UPLC-CAPE.
+- **`main`** — Plinth 1.64.0.0. Preview (BuiltinCasing) is a cabal flag,
+  not a parallel source tree. Production writes to
+  `Plinth_1.64.0.0_Unisay/`; preview writes to
+  `Plinth_1.64.0.0-builtin-casing_Unisay/`.
+- **`plinth-1.45`** — frozen at Plinth 1.45.0.0 with the original
+  parallel `lib/Preview/` tree. Produces byte-identical UPLC for every
+  `Plinth_1.45.0.0_Unisay/*.uplc` currently in UPLC-CAPE.
+- **`plinth-1.61`** — same shape, frozen at the source state that
+  produces byte-identical UPLC for every `Plinth_1.61.0.0_Unisay/*.uplc`.
 
 Each scenario's `source/README.md` in UPLC-CAPE pins a specific commit on
 one of these branches.
@@ -25,11 +28,14 @@ written into it. Set `CAPE_REPO` if the checkout is not at `../UPLC-CAPE`.
 ```sh
 nix develop
 
-# Production (Plinth 1.45 on plinth-1.45 branch; Plinth 1.64 on main)
+# main (Plinth 1.64.0.0)
+CAPE_REPO=../UPLC-CAPE cabal run plinth-submissions                      # production
+CAPE_REPO=../UPLC-CAPE cabal run --flags=preview plinth-submissions      # preview
+
+# plinth-1.45 (production line, no preview)
 CAPE_REPO=../UPLC-CAPE cabal run plinth-submissions
 
-# Preview (Plinth 1.61 with BuiltinCasing on plinth-1.61 branch;
-# Plinth 1.64 with BuiltinCasing on main via -f preview)
+# plinth-1.61 (preview line, parallel project file)
 CAPE_REPO=../UPLC-CAPE cabal run \
   --project-file=cabal.project.preview -f preview plinth-submissions-preview
 ```

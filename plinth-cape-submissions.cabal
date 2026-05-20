@@ -15,7 +15,8 @@ license:       Apache-2.0
 
 flag preview
   description:
-    Enable Preview.* modules (requires plutus-tx-plugin with BuiltinCasing support)
+    Build with @datatypes=BuiltinCasing@ enabled; .uplc lands under a
+    @-builtin-casing@ submission directory instead of the production one.
 
   default:     False
   manual:      True
@@ -25,10 +26,10 @@ common common-deps
     , base               >=4.16
     , bytestring
     , mtl
-    , plutus-core        ^>=1.45
-    , plutus-ledger-api  ^>=1.45
-    , plutus-tx          ^>=1.45
-    , plutus-tx-plugin   ^>=1.45
+    , plutus-core        ^>=1.64
+    , plutus-ledger-api  ^>=1.64
+    , plutus-tx          ^>=1.64
+    , plutus-tx-plugin   ^>=1.64
     , relude             ^>=1.2.2
     , text
 
@@ -76,7 +77,9 @@ common common-language
   import: common-deps
 
 -- Plinth validator sources for every UPLC-CAPE benchmark scenario.
--- Compiled at the Plinth/plutus-tx-plugin version pinned in cabal.project.
+-- The plugin pragmas live here so validator modules carry no
+-- Plinth-specific options; toggling the @preview@ flag selects the
+-- BuiltinCasing variant without a parallel source tree.
 library
   import:          common-language
   exposed-modules:
@@ -99,48 +102,26 @@ library
     , plutus-tx
     , plutus-tx-plugin
 
-  hs-source-dirs:  lib
+  ghc-options:
+    -fplugin Plinth.Plugin
+    -fplugin-opt Plinth.Plugin:target-version=1.1.0
+    -fplugin-opt Plinth.Plugin:defer-errors
+    -fplugin-opt Plinth.Plugin:no-conservative-optimisation
+    -fplugin-opt Plinth.Plugin:no-preserve-logging
+    -fplugin-opt Plinth.Plugin:remove-trace
 
--- Preview modules: re-compile every validator with BuiltinCasing enabled.
--- Build with: cabal --project-file=cabal.project.preview -f preview build all
-library plinth-cape-submissions-preview
-  import:          common-language
-  visibility:      private
-
-  if !flag(preview)
-    buildable: False
-
-  exposed-modules:
-    Preview.Ecd
-    Preview.Factorial
-    Preview.Fibonacci
-    Preview.FibonacciIterative
-    Preview.HTLC
-    Preview.LinearVesting
-    Preview.TwoPartyEscrow
-
-  other-modules:
-    Ecd
-    Factorial
-    Fibonacci
-    FibonacciIterative
-    HTLC
-    LinearVesting
-    TwoPartyEscrow
-    TwoPartyEscrow.Fixture
-
-  build-depends:
-    , plinth-cape-submissions
-    , plutus-core
-    , plutus-tx
-    , plutus-tx-plugin
+  if flag(preview)
+    ghc-options: -fplugin-opt Plinth.Plugin:datatypes=BuiltinCasing
+    cpp-options: -DPREVIEW
 
   hs-source-dirs:  lib
 
--- Plinth submissions generator (production line, currently Plinth 1.45).
--- Writes only the production @.uplc@ paths. Set @CAPE_REPO@ to the path
--- of a sibling UPLC-CAPE checkout (defaults to @../UPLC-CAPE@).
+-- Plinth submissions generator. Writes one @.uplc@ per scenario into the
+-- sibling UPLC-CAPE checkout (set @CAPE_REPO@ if it is not at
+-- @../UPLC-CAPE@). With the @preview@ flag set, the @PREVIEW@ CPP define
+-- redirects every write to the @-builtin-casing@ submission directory.
 --   CAPE_REPO=../UPLC-CAPE cabal run plinth-submissions
+--   CAPE_REPO=../UPLC-CAPE cabal --flags=preview run plinth-submissions
 executable plinth-submissions
   import:         common-language
   main-is:        Main.hs
@@ -150,24 +131,7 @@ executable plinth-submissions
     , plutus-tx
     , plutus-tx-plugin
 
+  if flag(preview)
+    cpp-options: -DPREVIEW
+
   hs-source-dirs: plinth-submissions-app
-
--- Plinth submissions generator (preview line, currently Plinth 1.61 +
--- BuiltinCasing). Writes only the preview @.uplc@ paths. Run with:
---   CAPE_REPO=../UPLC-CAPE cabal run \
---     --project-file=cabal.project.preview -f preview plinth-submissions-preview
-executable plinth-submissions-preview
-  import:         common-language
-  main-is:        Main.hs
-
-  if !flag(preview)
-    buildable: False
-
-  build-depends:
-    , plinth-cape-submissions
-    , plinth-cape-submissions:plinth-cape-submissions-preview
-    , plutus-core
-    , plutus-tx
-    , plutus-tx-plugin
-
-  hs-source-dirs: plinth-submissions-preview-app
