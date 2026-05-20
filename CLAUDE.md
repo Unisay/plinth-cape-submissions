@@ -12,8 +12,10 @@ artefact per scenario **into a sibling UPLC-CAPE checkout** at
 There are no tests in this repo — correctness is verified by UPLC-CAPE's
 `cape submission measure` against the committed `.uplc` files.
 
-`CAPE_REPO` defaults to `../UPLC-CAPE`. Missing destination directories are
-created on demand (`Cape.WritePlc`).
+`CAPE_REPO` is **required**: `Cape.WritePlc` aborts with an error if it is
+unset (no hardcoded path). Set it in `.envrc.local` (gitignored) so direnv
+picks it up automatically. Missing destination directories under it are
+created on demand.
 
 ## Build / run
 
@@ -26,11 +28,13 @@ run once, the shell is loaded automatically on `cd` — no explicit
 ```sh
 nix develop
 
+# CAPE_REPO must be set (typically via .envrc.local); commands abort otherwise.
+
 # Production submission ( -> Plinth_1.64.0.0_Unisay/ )
-CAPE_REPO=../UPLC-CAPE cabal run plinth-submissions
+cabal run plinth-submissions
 
 # Preview submission, BuiltinCasing datatypes ( -> Plinth_1.64.0.0_Unisay_builtincasing/ )
-CAPE_REPO=../UPLC-CAPE cabal run --flags=preview plinth-submissions
+cabal run --flags=preview plinth-submissions
 
 # Formatting (runs fourmolu, cabal-fmt, nixfmt, prettier, shfmt, pretty-uplc)
 treefmt

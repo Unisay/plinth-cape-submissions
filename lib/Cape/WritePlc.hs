@@ -3,8 +3,8 @@
 -- | Shared helper for writing CompiledCode values out as pretty-printed UPLC.
 --
 -- Output paths supplied by callers are interpreted relative to the sibling
--- UPLC-CAPE checkout. The directory is resolved from the @CAPE_REPO@
--- environment variable, defaulting to @../UPLC-CAPE@. Missing parent
+-- UPLC-CAPE checkout. The directory is read from the @CAPE_REPO@ environment
+-- variable; the program aborts with an error if it is unset. Missing parent
 -- directories are created on demand so a fresh clone works for any scenario.
 module Cape.WritePlc (writeCodeToFile) where
 
@@ -23,7 +23,13 @@ import UntypedPlutusCore.DeBruijn (unDeBruijnTerm)
 -- | Pretty-print the compiled UPLC with human-readable names and write to disk.
 writeCodeToFile :: FilePath -> CompiledCode a -> IO ()
 writeCodeToFile relPath code = do
-  capeRepo <- maybe "../UPLC-CAPE" id <$> Env.lookupEnv "CAPE_REPO"
+  capeRepo <-
+    Env.lookupEnv "CAPE_REPO" >>= \case
+      Just path -> pure path
+      Nothing ->
+        error
+          "CAPE_REPO is not set. Point it at your UPLC-CAPE checkout \
+          \(e.g. in .envrc.local: export CAPE_REPO=\"$HOME/path/to/UPLC-CAPE\")."
   let filePath = capeRepo </> relPath
   let uplcProgramWithDeBruijn = getPlcNoAnn code
   result <- runQuoteT $ runExceptT $ do

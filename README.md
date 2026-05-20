@@ -22,22 +22,26 @@ one of these branches.
 
 ## Build
 
-A sibling UPLC-CAPE checkout is required because `.uplc` outputs are
-written into it. Set `CAPE_REPO` if the checkout is not at `../UPLC-CAPE`.
+A UPLC-CAPE checkout is required because `.uplc` outputs are written into
+it. Point `CAPE_REPO` at that checkout — the build aborts if the variable
+is unset. The recommended place is `.envrc.local` (gitignored), e.g.:
+
+```sh
+export CAPE_REPO="$HOME/src/UPLC-CAPE"
+```
 
 ```sh
 nix develop
 
 # main (Plinth 1.64.0.0)
-CAPE_REPO=../UPLC-CAPE cabal run plinth-submissions                      # production
-CAPE_REPO=../UPLC-CAPE cabal run --flags=preview plinth-submissions      # preview
+cabal run plinth-submissions                      # production
+cabal run --flags=preview plinth-submissions      # preview
 
 # plinth-1.45 (production line, no preview)
-CAPE_REPO=../UPLC-CAPE cabal run plinth-submissions
+cabal run plinth-submissions
 
 # plinth-1.61 (preview line, parallel project file)
-CAPE_REPO=../UPLC-CAPE cabal run \
-  --project-file=cabal.project.preview -f preview plinth-submissions-preview
+cabal run --project-file=cabal.project.preview -f preview plinth-submissions-preview
 ```
 
 Missing destination directories are created automatically.

@@ -1,0 +1,9 @@
+# Copy to .envrc.local and adjust paths to your machine.
+# .envrc.local is gitignored; this template is the versioned reference.
+
+# Absolute path to your UPLC-CAPE checkout. Required — the build aborts
+# if CAPE_REPO is unset (see lib/Cape/WritePlc.hs).
+export CAPE_REPO="$HOME/path/to/UPLC-CAPE"
+
+# Optional: point Claude Code at a non-default config directory.
+# export CLAUDE_CONFIG_DIR="$HOME/.claude-work"
