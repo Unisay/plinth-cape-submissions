@@ -28,7 +28,7 @@ import TwoPartyEscrow (twoPartyEscrowValidatorCode)
 
 #ifdef PREVIEW
 plinthVersion :: FilePath
-plinthVersion = "Plinth_1.64.0.0-builtin-casing_Unisay"
+plinthVersion = "Plinth_1.64.0.0_Unisay_builtincasing"
 #else
 plinthVersion :: FilePath
 plinthVersion = "Plinth_1.64.0.0_Unisay"
