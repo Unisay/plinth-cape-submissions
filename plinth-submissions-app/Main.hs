@@ -43,16 +43,19 @@ linearVestingValidatorCode = $$(PlutusTx.compile [||linearVestingValidator||])
 htlcValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
 htlcValidatorCode = $$(PlutusTx.compile [||htlcValidator||])
 
-write :: FilePath -> FilePath -> CompiledCode a -> IO ()
-write scenario file =
-  writeCodeToFile ("submissions/" <> scenario <> "/" <> plinthVersion <> "/" <> file)
+-- | Write a compiled program into the sibling UPLC-CAPE checkout at
+-- @submissions/<scenario>/<plinthVersion>/<scenario>.uplc@. The artifact
+-- name is derived from the scenario so it always matches the directory.
+write :: FilePath -> CompiledCode a -> IO ()
+write scenario =
+  writeCodeToFile ("submissions/" <> scenario <> "/" <> plinthVersion <> "/" <> scenario <> ".uplc")
 
 main :: IO ()
 main = do
-  write "ecd" "ecd.uplc" ecdCode
-  write "fibonacci_naive_recursion" "fibonacci.uplc" fibonacciCode
-  write "fibonacci" "fibonacci.uplc" fibonacciIterativeCode
-  write "factorial_naive_recursion" "factorial.uplc" factorialCode
-  write "linear_vesting" "linear_vesting.uplc" linearVestingValidatorCode
-  write "htlc" "htlc.uplc" htlcValidatorCode
-  write "two_party_escrow" "two_party_escrow.uplc" twoPartyEscrowValidatorCode
+  write "ecd" ecdCode
+  write "fibonacci_naive_recursion" fibonacciCode
+  write "fibonacci" fibonacciIterativeCode
+  write "factorial_naive_recursion" factorialCode
+  write "linear_vesting" linearVestingValidatorCode
+  write "htlc" htlcValidatorCode
+  write "two_party_escrow" twoPartyEscrowValidatorCode
