@@ -22,6 +22,9 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
+-- `PlutusTx.AsData.asData` generates `match…` helpers that are part of
+-- its public API but unused inside this module.
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
 module HTLC (
   htlcValidator,
