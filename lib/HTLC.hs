@@ -13,6 +13,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+-- `PlutusTx.AsData.asData` generates `match…` helpers that are part of
+-- its public API but unused inside this module.
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 --
 {-# OPTIONS_GHC -fno-full-laziness #-}
 {-# OPTIONS_GHC -fno-ignore-interface-pragmas #-}
@@ -22,12 +25,41 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
--- `PlutusTx.AsData.asData` generates `match…` helpers that are part of
--- its public API but unused inside this module.
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{- Per-module Plinth inliner tuning. Selected by sweep over
+inline-unconditional-growth × inline-callsite-growth (see
+scripts/sweep-inline.sh): smallest uncond value reaching the deepest
+cpu_units.sum plateau (≈15.4% reduction vs default). callsite stays at
+default — for HTLC it adds nothing once uncond is tuned.
+
+Sweep results (callsite=default, splice in HTLC.hs, Plinth 1.64.0.0):
+
+  uncond  cpu_units.sum  memory_units.sum  script_size  term_size
+  ──────  ─────────────  ────────────────  ───────────  ─────────
+  def       423 110 329         1 313 070        1 017      1 125
+  15        421 382 329         1 302 270        1 015      1 124
+  30        416 630 732         1 281 662        1 021      1 132
+  75        399 461 031         1 209 390        1 575      1 734
+  90        391 973 031         1 162 590        2 007      2 204
+  100       391 973 031         1 162 590        2 066      2 268
+  110 ◀     356 473 569         1 034 842        4 135      4 580
+  120       356 473 569         1 034 842        4 569      5 068
+  150       356 473 569         1 034 842        4 648      5 156
+  300       356 473 569         1 034 842        4 648      5 156
+  1000      355 897 569         1 031 242        7 575      8 427
+
+Sharp transition between 100 and 110: CPU drops 9.0% while script roughly
+doubles. Above 110 the CPU plateau is flat — picked the leftmost value to
+keep script size as small as the plateau allows. uncond=1000 saves a
+further 0.16% CPU at +83% script and was rejected.
+
+callsite tuned alone saturates higher (357 177 569 at callsite≥150);
+combining a tuned callsite with a tuned uncond yields no further gain.
+-}
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=110 #-}
 
 module HTLC (
   htlcValidator,
+  htlcValidatorCode,
   HTLCDatum,
   pattern HTLCDatum,
   payer,
@@ -40,6 +72,7 @@ module HTLC (
 ) where
 
 import PlutusLedgerApi.Data.V3
+import PlutusTx qualified
 import PlutusTx.AsData (asData)
 import PlutusTx.Builtins (
   equalsByteString,
@@ -47,6 +80,7 @@ import PlutusTx.Builtins (
   lessThanEqualsInteger,
  )
 import PlutusTx.Builtins.Internal (unitval)
+import PlutusTx.Code (CompiledCode)
 import PlutusTx.Data.List qualified as List
 import PlutusTx.Prelude
 
@@ -90,6 +124,9 @@ avoid re-decoding the underlying 'Data' on each field access, the validator
 pattern-matches every layer exactly once and threads the extracted fields
 through the per-redeemer branches.
 -}
+htlcValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
+htlcValidatorCode = $$(PlutusTx.compile [||htlcValidator||])
+
 {-# INLINEABLE htlcValidator #-}
 htlcValidator :: BuiltinData -> BuiltinUnit
 htlcValidator scriptContextData =
@@ -243,7 +280,7 @@ ownInputScriptHash inputs ownTxOutRef =
             TxOut {txOutAddress = Address (ScriptCredential (ScriptHash sh)) _}
           }
         ) ->
-      sh
+        sh
     Just _ -> traceError "Own input address is not a script credential"
     Nothing -> traceError "Own input not found"
   where
@@ -261,14 +298,15 @@ countOwnScriptInputs :: List.List TxInInfo -> TxOutRef -> Integer
 countOwnScriptInputs inputs ownTxOutRef =
   let ownHash = ownInputScriptHash inputs ownTxOutRef
    in List.foldl
-        ( \acc ( TxInInfo
-                  { txInInfoResolved = TxOut {txOutAddress = Address {addressCredential = cred}}
-                  }
-                ) ->
-            case cred of
-              ScriptCredential (ScriptHash sh) ->
-                if equalsByteString sh ownHash then acc + 1 else acc
-              _ -> acc
+        ( \acc
+           ( TxInInfo
+               { txInInfoResolved = TxOut {txOutAddress = Address {addressCredential = cred}}
+               }
+             ) ->
+              case cred of
+                ScriptCredential (ScriptHash sh) ->
+                  if equalsByteString sh ownHash then acc + 1 else acc
+                _ -> acc
         )
         0
         inputs

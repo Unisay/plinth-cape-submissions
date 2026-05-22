@@ -5,6 +5,7 @@ dist-newstyle/
 *.local.md
 .hspec-failures
 .envrc.local
+.claude/
 build-and-deploy.sh
 result
 result-*

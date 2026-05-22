@@ -18,7 +18,7 @@ import Ecd (ecdCode)
 import Factorial (factorialCode)
 import Fibonacci (fibonacciCode)
 import FibonacciIterative (fibonacciIterativeCode)
-import HTLC (htlcValidator)
+import HTLC (htlcValidatorCode)
 import LinearVesting (linearVestingValidator)
 import PlutusTx qualified
 import PlutusTx.Builtins.Internal (BuiltinData)
@@ -34,14 +34,12 @@ plinthVersion :: FilePath
 plinthVersion = "Plinth_1.64.0.0_Unisay"
 #endif
 
--- Compile splices live here (not in HTLC.hs / LinearVesting.hs) as a
--- workaround for a PlutusTx plugin interaction observed under the
--- 1.45 line; kept in place pending verification on 1.64.
+-- LinearVesting splice still lives here (workaround for a PlutusTx plugin
+-- interaction observed under the 1.45 line, pending verification on 1.64).
+-- HTLC splice was moved back into HTLC.hs so per-module OPTIONS_GHC pragmas
+-- reach its plugin invocation.
 linearVestingValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
 linearVestingValidatorCode = $$(PlutusTx.compile [||linearVestingValidator||])
-
-htlcValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
-htlcValidatorCode = $$(PlutusTx.compile [||htlcValidator||])
 
 -- | Write a compiled program to
 -- @$CAPE_REPO/submissions/<scenario>/<plinthVersion>/<scenario>.uplc@.
