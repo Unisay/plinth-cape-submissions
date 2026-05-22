@@ -33,10 +33,18 @@ UNCOND_VALUES=(default 5 10 15 20 30)
 CALLSITE_VALUES=(default 5 10 15 20 30)
 
 BACKUP="$(mktemp)"
+STRIPPED="$(mktemp)"
+BUILD_LOG="$(mktemp -t sweep-build.XXXXXX.log)"
+MEASURE_LOG="$(mktemp -t sweep-measure.XXXXXX.log)"
 cp "$MODULE_PATH" "$BACKUP"
+# Drop any pre-existing inline-* pragmas so each cell measures exactly the
+# pragmas it sets — otherwise a stale pragma in the source would shadow
+# "default" cells or stack with cell values.
+sed -E '/\{-# *OPTIONS_GHC.*Plinth\.Plugin:inline-(unconditional|callsite)-growth=.*#-\}/d' \
+  "$BACKUP" > "$STRIPPED"
 restore() {
   cp "$BACKUP" "$MODULE_PATH"
-  rm -f "$BACKUP"
+  rm -f "$BACKUP" "$STRIPPED"
 }
 trap restore EXIT
 
@@ -48,7 +56,7 @@ i=0
 for g_un in "${UNCOND_VALUES[@]}"; do
   for g_cs in "${CALLSITE_VALUES[@]}"; do
     i=$((i + 1))
-    cp "$BACKUP" "$MODULE_PATH"
+    cp "$STRIPPED" "$MODULE_PATH"
 
     pragmas=""
     [[ "$g_un" != "default" ]] && pragmas+="{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=$g_un #-}"$'\n'
@@ -56,20 +64,20 @@ for g_un in "${UNCOND_VALUES[@]}"; do
     if [[ -n "$pragmas" ]]; then
       {
         printf '%s' "$pragmas"
-        cat "$BACKUP"
+        cat "$STRIPPED"
       } > "$MODULE_PATH"
     fi
 
     printf '[%d/%d] g_uncond=%s g_callsite=%s ... ' "$i" "$total" "$g_un" "$g_cs" >&2
 
-    if ! cabal run -v0 plinth-submissions > /tmp/sweep-build.log 2>&1; then
-      echo "BUILD FAILED" >&2
+    if ! cabal run -v0 plinth-submissions > "$BUILD_LOG" 2>&1; then
+      echo "BUILD FAILED (log: $BUILD_LOG)" >&2
       echo "$g_un,$g_cs,,,,,build_failed" >> "$OUT"
       continue
     fi
 
-    if ! (cd "$CAPE_REPO" && direnv exec . scripts/cape.sh submission measure "submissions/$SCENARIO/$SUBDIR") > /tmp/sweep-measure.log 2>&1; then
-      echo "MEASURE FAILED" >&2
+    if ! (cd "$CAPE_REPO" && direnv exec . scripts/cape.sh submission measure "submissions/$SCENARIO/$SUBDIR") > "$MEASURE_LOG" 2>&1; then
+      echo "MEASURE FAILED (log: $MEASURE_LOG)" >&2
       echo "$g_un,$g_cs,,,,,measure_failed" >> "$OUT"
       continue
     fi

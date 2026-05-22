@@ -22,8 +22,20 @@ SUBDIR="Plinth_1.64.0.0_Unisay"
 SUBMISSION_DIR="$CAPE_REPO/submissions/$SCENARIO/$SUBDIR"
 
 BACKUP="$(mktemp)"
+STRIPPED="$(mktemp)"
+BUILD_LOG="$(mktemp -t sweep-build.XXXXXX.log)"
+MEASURE_LOG="$(mktemp -t sweep-measure.XXXXXX.log)"
 cp "$MODULE_PATH" "$BACKUP"
-trap "cp $BACKUP $MODULE_PATH; rm -f $BACKUP" EXIT
+# Drop any pre-existing inline-* pragmas so each cell measures exactly the
+# pragmas it sets — otherwise a stale pragma in the source would shadow
+# "default" cells or stack with cell values.
+sed -E '/\{-# *OPTIONS_GHC.*Plinth\.Plugin:inline-(unconditional|callsite)-growth=.*#-\}/d' \
+  "$BACKUP" > "$STRIPPED"
+restore() {
+  cp "$BACKUP" "$MODULE_PATH"
+  rm -f "$BACKUP" "$STRIPPED"
+}
+trap restore EXIT
 
 mkdir -p "$(dirname "$OUT")"
 echo "g_uncond,g_callsite,cpu_sum,mem_sum,script_size,term_size,status" > "$OUT"
@@ -33,26 +45,32 @@ i=0
 for cell in "$@"; do
   i=$((i + 1))
   IFS=':' read -r g_un g_cs <<< "$cell"
-  cp "$BACKUP" "$MODULE_PATH"
+  for v in "$g_un" "$g_cs"; do
+    if [[ -z "$v" || ( "$v" != "default" && ! "$v" =~ ^[0-9]+$ ) ]]; then
+      echo "invalid cell '$cell' — expected 'g_uncond:g_callsite', each 'default' or a non-negative integer" >&2
+      exit 1
+    fi
+  done
+  cp "$STRIPPED" "$MODULE_PATH"
   pragmas=""
   [[ "$g_un" != "default" ]] && pragmas+="{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=$g_un #-}"$'\n'
   [[ "$g_cs" != "default" ]] && pragmas+="{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-callsite-growth=$g_cs #-}"$'\n'
   if [[ -n "$pragmas" ]]; then
     {
       printf '%s' "$pragmas"
-      cat "$BACKUP"
+      cat "$STRIPPED"
     } > "$MODULE_PATH"
   fi
 
   printf '[%d/%d] g_uncond=%s g_callsite=%s ... ' "$i" "$total" "$g_un" "$g_cs" >&2
 
-  if ! cabal run -v0 plinth-submissions > /tmp/sweep-build.log 2>&1; then
-    echo "BUILD FAILED" >&2
+  if ! cabal run -v0 plinth-submissions > "$BUILD_LOG" 2>&1; then
+    echo "BUILD FAILED (log: $BUILD_LOG)" >&2
     echo "$g_un,$g_cs,,,,,build_failed" >> "$OUT"
     continue
   fi
-  if ! (cd "$CAPE_REPO" && direnv exec . scripts/cape.sh submission measure "submissions/$SCENARIO/$SUBDIR") > /tmp/sweep-measure.log 2>&1; then
-    echo "MEASURE FAILED" >&2
+  if ! (cd "$CAPE_REPO" && direnv exec . scripts/cape.sh submission measure "submissions/$SCENARIO/$SUBDIR") > "$MEASURE_LOG" 2>&1; then
+    echo "MEASURE FAILED (log: $MEASURE_LOG)" >&2
     echo "$g_un,$g_cs,,,,,measure_failed" >> "$OUT"
     continue
   fi
