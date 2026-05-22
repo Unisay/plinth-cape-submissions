@@ -24,6 +24,7 @@
 
 module LinearVesting (
   linearVestingValidator,
+  linearVestingValidatorCode,
   VestingDatum (..),
   VestingRedeemer (..),
 ) where
@@ -75,6 +76,9 @@ Redeemer constants:
 The validator reads VestingDatum from the ScriptInfo datum, not baked-in constants.
 All vesting parameters (beneficiary, asset, schedule) come from the datum.
 -}
+linearVestingValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
+linearVestingValidatorCode = $$(compile [||linearVestingValidator||])
+
 {-# INLINEABLE linearVestingValidator #-}
 linearVestingValidator :: BuiltinData -> BuiltinUnit
 linearVestingValidator scriptContextData =
@@ -218,9 +222,3 @@ spendingDatum :: ScriptInfo -> VestingDatum
 spendingDatum = \case
   SpendingScript _ (Just datum) -> unsafeFromBuiltinData (getDatum datum)
   _ -> traceError "Expected SpendingScript with datum"
-
--- NOTE: CompiledCode splice moved to plinth-submissions-app/Main.hs
--- as a workaround for PlutusTx plugin bug: having $$(compile ...) here
--- (without BuiltinCasing) prevents cross-library re-compilation with
--- BuiltinCasing in Preview.LinearVesting.
--- See: https://github.com/IntersectMBO/plutus/issues/XXXX

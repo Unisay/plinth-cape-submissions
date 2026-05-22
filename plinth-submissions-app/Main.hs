@@ -1,6 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 {- | Generator for the Plinth submission artefacts on the @main@ branch
 (Plinth 1.64.0.0). Selects production vs preview destination directory
@@ -18,12 +16,9 @@ import Ecd (ecdCode)
 import Factorial (factorialCode)
 import Fibonacci (fibonacciCode)
 import FibonacciIterative (fibonacciIterativeCode)
-import HTLC (htlcValidator)
-import LinearVesting (linearVestingValidator)
-import PlutusTx qualified
-import PlutusTx.Builtins.Internal (BuiltinData)
+import HTLC (htlcValidatorCode)
+import LinearVesting (linearVestingValidatorCode)
 import PlutusTx.Code (CompiledCode)
-import PlutusTx.Prelude (BuiltinUnit)
 import TwoPartyEscrow (twoPartyEscrowValidatorCode)
 
 #ifdef PREVIEW
@@ -33,15 +28,6 @@ plinthVersion = "Plinth_1.64.0.0_Unisay_builtincasing"
 plinthVersion :: FilePath
 plinthVersion = "Plinth_1.64.0.0_Unisay"
 #endif
-
--- Compile splices live here (not in HTLC.hs / LinearVesting.hs) as a
--- workaround for a PlutusTx plugin interaction observed under the
--- 1.45 line; kept in place pending verification on 1.64.
-linearVestingValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
-linearVestingValidatorCode = $$(PlutusTx.compile [||linearVestingValidator||])
-
-htlcValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
-htlcValidatorCode = $$(PlutusTx.compile [||htlcValidator||])
 
 -- | Write a compiled program to
 -- @$CAPE_REPO/submissions/<scenario>/<plinthVersion>/<scenario>.uplc@.

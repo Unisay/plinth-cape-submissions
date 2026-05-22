@@ -65,20 +65,20 @@ reproducing the exact UPLC that UPLC-CAPE pins by commit hash.
 
 - `lib/<Scenario>.hs` — one validator/program per UPLC-CAPE benchmark
   (`Ecd`, `Factorial`, `Fibonacci`, `FibonacciIterative`, `HTLC`,
-  `LinearVesting`, `TwoPartyEscrow`). Validator modules carry no
-  Plinth-specific GHC options; the `-fplugin` and plugin opts live in the
-  cabal `library` stanza so all modules share them.
+  `LinearVesting`, `TwoPartyEscrow`). Each module hosts its own
+  `PlutusTx.compile` splice so per-module `OPTIONS_GHC` pragmas (notably
+  the inliner tunings `inline-unconditional-growth` /
+  `inline-callsite-growth`) reach the plugin invocation. The shared
+  `-fplugin` and global plugin opts live in the cabal `library` stanza.
 - `lib/<Scenario>/Fixture.hs` — datums/redeemers/contexts used by the
   validator and (where present) `asData` matchers.
 - `lib/Cape/WritePlc.hs` — shared pretty-printer + writer. Converts the
   DeBruijn program back to named form via `unDeBruijnTerm`, prints with
   `prettyPlcClassic`, and normalises to exactly one trailing newline so
   generated files don't diff under `treefmt`'s `pretty-uplc` formatter.
-- `plinth-submissions-app/Main.hs` — the generator. **Splices for
-  `linearVestingValidator` and `htlcValidator` live here, not in their
-  modules**, as a deliberate workaround for a PlutusTx plugin interaction
-  first seen on the 1.45 line; kept pending verification on 1.64. Don't
-  move them back without checking the generated UPLC is unchanged.
+- `plinth-submissions-app/Main.hs` — the generator. Imports each
+  scenario's pre-spliced `*Code` value and writes the corresponding
+  `.uplc` file.
 
 ## Plinth plugin options (in cabal `library`)
 
