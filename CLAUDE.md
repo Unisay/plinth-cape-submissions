@@ -65,25 +65,20 @@ reproducing the exact UPLC that UPLC-CAPE pins by commit hash.
 
 - `lib/<Scenario>.hs` — one validator/program per UPLC-CAPE benchmark
   (`Ecd`, `Factorial`, `Fibonacci`, `FibonacciIterative`, `HTLC`,
-  `LinearVesting`, `TwoPartyEscrow`). The shared `-fplugin` and global plugin
-  opts live in the cabal `library` stanza. Per-scenario inliner tuning
-  (`inline-unconditional-growth`, `inline-callsite-growth`) is set with
-  `OPTIONS_GHC` pragmas in the scenario module itself — but those pragmas
-  only reach the plugin if the `PlutusTx.compile` splice is *in that same
-  module*. Splices that live in `Main.hs` (see below) bypass them.
+  `LinearVesting`, `TwoPartyEscrow`). Each module hosts its own
+  `PlutusTx.compile` splice so per-module `OPTIONS_GHC` pragmas (notably
+  the inliner tunings `inline-unconditional-growth` /
+  `inline-callsite-growth`) reach the plugin invocation. The shared
+  `-fplugin` and global plugin opts live in the cabal `library` stanza.
 - `lib/<Scenario>/Fixture.hs` — datums/redeemers/contexts used by the
   validator and (where present) `asData` matchers.
 - `lib/Cape/WritePlc.hs` — shared pretty-printer + writer. Converts the
   DeBruijn program back to named form via `unDeBruijnTerm`, prints with
   `prettyPlcClassic`, and normalises to exactly one trailing newline so
   generated files don't diff under `treefmt`'s `pretty-uplc` formatter.
-- `plinth-submissions-app/Main.hs` — the generator. **The `linearVestingValidator`
-  splice lives here, not in `LinearVesting.hs`**, as a workaround for a
-  PlutusTx plugin interaction first seen on the 1.45 line; kept pending
-  verification on 1.64. The `htlcValidator` splice was moved back into
-  `HTLC.hs` (UPLC changed slightly — script size shrunk, see git history)
-  so per-module inliner pragmas reach it. Don't move LinearVesting back
-  without checking the generated UPLC.
+- `plinth-submissions-app/Main.hs` — the generator. Imports each
+  scenario's pre-spliced `*Code` value and writes the corresponding
+  `.uplc` file.
 
 ## Plinth plugin options (in cabal `library`)
 
