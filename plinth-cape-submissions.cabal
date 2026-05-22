@@ -77,9 +77,13 @@ common common-language
   import: common-deps
 
 -- Plinth validator sources for every UPLC-CAPE benchmark scenario.
--- The plugin pragmas live here so validator modules carry no
--- Plinth-specific options; toggling the @preview@ flag selects the
--- BuiltinCasing variant without a parallel source tree.
+-- The shared @-fplugin@ and global plugin opts live here. Per-scenario
+-- inliner tuning (@inline-unconditional-growth@,
+-- @inline-callsite-growth@) is set with @OPTIONS_GHC@ pragmas in the
+-- scenario module itself — but those pragmas only reach the plugin if
+-- the @PlutusTx.compile@ splice lives in that same module. Toggling
+-- the @preview@ flag selects the BuiltinCasing variant without a
+-- parallel source tree.
 library
   import:          common-language
   exposed-modules:
