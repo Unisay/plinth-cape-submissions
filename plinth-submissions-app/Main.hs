@@ -6,8 +6,8 @@
 (Plinth 1.64.0.0). Selects production vs preview destination directory
 via the @PREVIEW@ CPP define, which is set by the @preview@ cabal
 flag (see @plinth-cape-submissions.cabal@). Each output path is
-resolved relative to the sibling UPLC-CAPE checkout — set @CAPE_REPO@
-if it is not at @../UPLC-CAPE@.
+resolved relative to the UPLC-CAPE checkout pointed to by the
+required @CAPE_REPO@ environment variable.
 -}
 module Main (main) where
 
@@ -43,9 +43,10 @@ linearVestingValidatorCode = $$(PlutusTx.compile [||linearVestingValidator||])
 htlcValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
 htlcValidatorCode = $$(PlutusTx.compile [||htlcValidator||])
 
--- | Write a compiled program into the sibling UPLC-CAPE checkout at
--- @submissions/<scenario>/<plinthVersion>/<scenario>.uplc@. The artifact
--- name is derived from the scenario so it always matches the directory.
+-- | Write a compiled program to
+-- @$CAPE_REPO/submissions/<scenario>/<plinthVersion>/<scenario>.uplc@.
+-- The artifact name is derived from the scenario so it always matches
+-- the directory.
 write :: FilePath -> CompiledCode a -> IO ()
 write scenario =
   writeCodeToFile ("submissions/" <> scenario <> "/" <> plinthVersion <> "/" <> scenario <> ".uplc")
