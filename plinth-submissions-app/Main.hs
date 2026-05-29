@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 
 {- | Generator for the Plinth submission artefacts on the @main@ branch
-(Plinth 1.64.0.0). Selects production vs preview destination directory
+(Plinth 1.65.0.0). Selects production vs preview destination directory
 via the @PREVIEW@ CPP define, which is set by the @preview@ cabal
 flag (see @plinth-cape-submissions.cabal@). Each output path is
 resolved relative to the UPLC-CAPE checkout pointed to by the
@@ -23,10 +23,10 @@ import TwoPartyEscrow (twoPartyEscrowValidatorCode)
 
 #ifdef PREVIEW
 plinthVersion :: FilePath
-plinthVersion = "Plinth_1.64.0.0_Unisay_builtincasing"
+plinthVersion = "Plinth_1.65.0.0_Unisay_builtincasing"
 #else
 plinthVersion :: FilePath
-plinthVersion = "Plinth_1.64.0.0_Unisay"
+plinthVersion = "Plinth_1.65.0.0_Unisay"
 #endif
 
 -- | Write a compiled program to

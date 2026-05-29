@@ -15,7 +15,7 @@ set -euo pipefail
 
 MODULE_PATH="${1:?module path required, e.g. lib/HTLC.hs}"
 SCENARIO="${2:?scenario name required, e.g. htlc}"
-SUBDIR="${3:-Plinth_1.64.0.0_Unisay}"
+SUBDIR="${3:-Plinth_1.65.0.0_Unisay}"
 OUT="${4:-scripts/sweep-results-${SCENARIO}.csv}"
 
 : "${CAPE_REPO:?CAPE_REPO must be set}"

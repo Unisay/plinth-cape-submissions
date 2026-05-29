@@ -16,7 +16,7 @@ There are **no automated tests** in this repo. Correctness is verified externall
 
 ### Nix is required
 
-The project uses [haskell.nix](https://github.com/input-output-hk/haskell.nix) and pins all Haskell dependencies to **Plutus 1.64** (GHC 9.6.7). Building outside the Nix dev shell will pick up whatever GHC/plutus-tx is globally installed, which will almost certainly be the wrong version.
+The project uses [haskell.nix](https://github.com/input-output-hk/haskell.nix) and pins all Haskell dependencies to **Plutus 1.65** (GHC 9.6.7). Building outside the Nix dev shell will pick up whatever GHC/plutus-tx is globally installed, which will almost certainly be the wrong version.
 
 ```sh
 nix develop          # enter the pinned shell
@@ -41,10 +41,10 @@ The `.envrc.local.template` file in the repo root is the versioned reference.
 ## Build commands (inside `nix develop`)
 
 ```sh
-# Production submission → Plinth_1.64.0.0_Unisay/
+# Production submission → Plinth_1.65.0.0_Unisay/
 cabal run plinth-submissions
 
-# Preview submission (BuiltinCasing datatypes) → Plinth_1.64.0.0_Unisay_builtincasing/
+# Preview submission (BuiltinCasing datatypes) → Plinth_1.65.0.0_Unisay_builtincasing/
 cabal run --flags=preview plinth-submissions
 
 # Format all files (fourmolu, cabal-fmt, nixfmt, prettier, shfmt, pretty-uplc)
@@ -99,11 +99,12 @@ These are wired together in `plinth-cape-submissions.cabal`. Never set one witho
 
 ## Branch model
 
-Three long-lived branches each produce byte-identical UPLC for a specific Plinth release:
+Four long-lived branches each produce byte-identical UPLC for a specific Plinth release:
 
 | Branch | Plinth version | Preview mechanism |
 |---|---|---|
-| `main` | 1.64.0.0 | `--flags=preview` cabal flag |
+| `main` | 1.65.0.0 | `--flags=preview` cabal flag |
+| `plinth-1.64` | 1.64.0.0 | `--flags=preview` cabal flag |
 | `plinth-1.45` | 1.45.0.0 | parallel `lib/Preview/` source tree |
 | `plinth-1.61` | 1.61.0.0 | `cabal.project.preview` + `plinth-submissions-preview` exe |
 

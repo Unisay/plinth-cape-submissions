@@ -20,7 +20,7 @@ created on demand.
 ## Build / run
 
 Enter the haskell.nix dev shell first; cabal pins are constrained to plutus
-1.64, which would otherwise lose to whatever is globally installed. The repo
+1.65, which would otherwise lose to whatever is globally installed. The repo
 ships an `.envrc` (`use flake`), so with `direnv` installed and `direnv allow`
 run once, the shell is loaded automatically on `cd` — no explicit
 `nix develop` needed. Otherwise:
@@ -30,10 +30,10 @@ nix develop
 
 # CAPE_REPO must be set (typically via .envrc.local); commands abort otherwise.
 
-# Production submission ( -> Plinth_1.64.0.0_Unisay/ )
+# Production submission ( -> Plinth_1.65.0.0_Unisay/ )
 cabal run plinth-submissions
 
-# Preview submission, BuiltinCasing datatypes ( -> Plinth_1.64.0.0_Unisay_builtincasing/ )
+# Preview submission, BuiltinCasing datatypes ( -> Plinth_1.65.0.0_Unisay_builtincasing/ )
 cabal run --flags=preview plinth-submissions
 
 # Formatting (runs fourmolu, cabal-fmt, nixfmt, prettier, shfmt, pretty-uplc)
@@ -48,11 +48,13 @@ other — they're paired in `plinth-cape-submissions.cabal`.
 
 ## Branch model (important)
 
-Three long-lived branches, each producing byte-identical UPLC for a specific
+Four long-lived branches, each producing byte-identical UPLC for a specific
 Plinth release that's referenced from UPLC-CAPE's per-scenario
 `source/README.md`:
 
-- `main` — Plinth **1.64.0.0**. Preview is a cabal flag, not a parallel tree.
+- `main` — Plinth **1.65.0.0**. Preview is a cabal flag, not a parallel tree.
+- `plinth-1.64` — frozen at 1.64.0.0; same shape as `main` (preview is a
+  cabal flag). Reproduces every `Plinth_1.64.0.0_Unisay/*.uplc`.
 - `plinth-1.45` — frozen at 1.45.0.0; has a parallel `lib/Preview/` tree.
 - `plinth-1.61` — frozen at 1.61.0.0; uses `cabal.project.preview` +
   `plinth-submissions-preview` executable.

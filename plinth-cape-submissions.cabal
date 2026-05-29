@@ -26,10 +26,10 @@ common common-deps
     , base               >=4.16
     , bytestring
     , mtl
-    , plutus-core        ^>=1.64
-    , plutus-ledger-api  ^>=1.64
-    , plutus-tx          ^>=1.64
-    , plutus-tx-plugin   ^>=1.64
+    , plutus-core        ^>=1.65
+    , plutus-ledger-api  ^>=1.65
+    , plutus-tx          ^>=1.65
+    , plutus-tx-plugin   ^>=1.65
     , relude             ^>=1.2.2
     , text
 

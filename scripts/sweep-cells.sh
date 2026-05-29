@@ -18,7 +18,7 @@ OUT="${3:?output csv required}"
 shift 3
 
 : "${CAPE_REPO:?CAPE_REPO must be set}"
-SUBDIR="Plinth_1.64.0.0_Unisay"
+SUBDIR="Plinth_1.65.0.0_Unisay"
 SUBMISSION_DIR="$CAPE_REPO/submissions/$SCENARIO/$SUBDIR"
 
 BACKUP="$(mktemp)"
