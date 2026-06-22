@@ -7,7 +7,7 @@ This repository contains Plinth (PlutusTx / Haskell) source code for the benchma
 The generator executable (`plinth-submissions`) compiles each scenario's `CompiledCode`, converts it from DeBruijn to named form, pretty-prints it with `prettyPlcClassic`, and writes it to:
 
 ```
-<CAPE_REPO>/submissions/<scenario>/Plinth_<ver>_Unisay[_builtincasing]/<file>.uplc
+<CAPE_REPO>/submissions/<scenario>/Plinth_<ver>_Unisay[_preview]/<file>.uplc
 ```
 
 There are **no automated tests** in this repo. Correctness is verified externally by UPLC-CAPE's `cape submission measure/verify` commands run against the committed `.uplc` files.
@@ -44,7 +44,7 @@ The `.envrc.local.template` file in the repo root is the versioned reference.
 # Production submission → Plinth_1.65.0.0_Unisay/
 cabal run plinth-submissions
 
-# Preview submission (BuiltinCasing datatypes) → Plinth_1.65.0.0_Unisay_builtincasing/
+# Preview submission (BuiltinCasing datatypes) → Plinth_1.65.0.0_Unisay_preview/
 cabal run --flags=preview plinth-submissions
 
 # Format all files (fourmolu, cabal-fmt, nixfmt, prettier, shfmt, pretty-uplc)
@@ -80,7 +80,7 @@ The `PlutusTx.compile` splices for `linearVestingValidator` and `htlcValidator` 
 The flag does two things in lockstep — **both must always be toggled together**:
 
 1. Passes `-fplugin-opt Plinth.Plugin:datatypes=BuiltinCasing` to the library.
-2. Defines the `PREVIEW` CPP macro in `plinth-submissions-app/Main.hs`, redirecting writes to the `*_builtincasing` submission directory.
+2. Defines the `PREVIEW` CPP macro in `plinth-submissions-app/Main.hs`, redirecting writes to the `*_preview` submission directory.
 
 These are wired together in `plinth-cape-submissions.cabal`. Never set one without the other.
 

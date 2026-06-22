@@ -10,7 +10,7 @@ artefacts that are committed into a sibling `UPLC-CAPE` checkout under
 - **`main`** — Plinth 1.65.0.0. Preview (BuiltinCasing) is a cabal flag,
   not a parallel source tree. Production writes to
   `Plinth_1.65.0.0_Unisay/`; preview writes to
-  `Plinth_1.65.0.0_Unisay_builtincasing/`.
+  `Plinth_1.65.0.0_Unisay_preview/`.
 - **`plinth-1.64`** — frozen at the source state that produces
   byte-identical UPLC for every `Plinth_1.64.0.0_Unisay/*.uplc` currently
   in UPLC-CAPE. Same shape as `main` (preview is a cabal flag).
