@@ -8,7 +8,7 @@ Plinth (PlutusTx) source for the benchmark scenarios measured by
 [UPLC-CAPE](https://github.com/IntersectMBO/UPLC-CAPE). The `plinth-submissions`
 executable pretty-prints each scenario's `CompiledCode` and writes one `.uplc`
 artefact per scenario **into a sibling UPLC-CAPE checkout** at
-`<CAPE_REPO>/submissions/<scenario>/Plinth_<ver>_Unisay[_builtincasing]/<file>.uplc`.
+`<CAPE_REPO>/submissions/<scenario>/Plinth_<ver>_Unisay[_preview]/<file>.uplc`.
 There are no tests in this repo — correctness is verified by UPLC-CAPE's
 `cape submission measure` against the committed `.uplc` files.
 
@@ -33,7 +33,7 @@ nix develop
 # Production submission ( -> Plinth_1.65.0.0_Unisay/ )
 cabal run plinth-submissions
 
-# Preview submission, BuiltinCasing datatypes ( -> Plinth_1.65.0.0_Unisay_builtincasing/ )
+# Preview submission, BuiltinCasing datatypes ( -> Plinth_1.65.0.0_Unisay_preview/ )
 cabal run --flags=preview plinth-submissions
 
 # Formatting (runs fourmolu, cabal-fmt, nixfmt, prettier, shfmt, pretty-uplc)
@@ -43,7 +43,7 @@ treefmt
 The `preview` cabal flag does two things in lockstep: passes
 `-fplugin-opt Plinth.Plugin:datatypes=BuiltinCasing` to the library, and sets
 the `PREVIEW` CPP define in `plinth-submissions-app/Main.hs` so writes are
-redirected to the `*_builtincasing` directory. Don't toggle one without the
+redirected to the `*_preview` directory. Don't toggle one without the
 other — they're paired in `plinth-cape-submissions.cabal`.
 
 ## Branch model (important)

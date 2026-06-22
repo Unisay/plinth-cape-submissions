@@ -16,7 +16,7 @@ license:       Apache-2.0
 flag preview
   description:
     Build with @datatypes=BuiltinCasing@ enabled; .uplc lands under a
-    @-builtin-casing@ submission directory instead of the production one.
+    @_preview@ submission directory instead of the production one.
 
   default:     False
   manual:      True
@@ -123,7 +123,7 @@ library
 -- Plinth submissions generator. Writes one @.uplc@ per scenario into the
 -- sibling UPLC-CAPE checkout (set @CAPE_REPO@ if it is not at
 -- @../UPLC-CAPE@). With the @preview@ flag set, the @PREVIEW@ CPP define
--- redirects every write to the @-builtin-casing@ submission directory.
+-- redirects every write to the @_preview@ submission directory.
 --   CAPE_REPO=../UPLC-CAPE cabal run plinth-submissions
 --   CAPE_REPO=../UPLC-CAPE cabal --flags=preview run plinth-submissions
 executable plinth-submissions
