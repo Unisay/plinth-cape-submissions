@@ -93,9 +93,11 @@ library
     Fibonacci
     FibonacciIterative
     HTLC
+    HTLC.Monadic
     HTLC.Fixture
     LinearVesting
     LinearVesting.Fixture
+    Plinth.Validator
     TwoPartyEscrow
     TwoPartyEscrow.Fixture
 
