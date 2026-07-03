@@ -97,6 +97,7 @@ library
     HTLC.Fixture
     LinearVesting
     LinearVesting.Fixture
+    LinearVesting.Monadic
     Plinth.Decoder
     Plinth.Decoder.Named
     Plinth.Decoder.Named.ScriptContext
