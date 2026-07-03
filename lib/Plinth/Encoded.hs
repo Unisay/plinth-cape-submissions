@@ -23,6 +23,7 @@ module Plinth.Encoded (
   anyE,
   findE,
   countE,
+  foldE,
 
   -- * Lookup in encoded maps
   lookupE,
@@ -99,6 +100,13 @@ countE p (Encoded d) = go 0 (BI.unsafeDataAsList d)
     go acc xs = matchList' xs acc \h t ->
       go (if p (Encoded h) then acc + 1 else acc) t
 {-# INLINEABLE countE #-}
+
+-- | Left fold over an encoded list's elements.
+foldE :: (b -> Encoded a -> b) -> b -> Encoded (List a) -> b
+foldE f z (Encoded d) = go z (BI.unsafeDataAsList d)
+  where
+    go acc xs = matchList' xs acc \h t -> go (f acc (Encoded h)) t
+{-# INLINEABLE foldE #-}
 
 --------------------------------------------------------------------------------
 -- Lookup in encoded maps -------------------------------------------------------

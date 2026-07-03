@@ -32,6 +32,7 @@ module Plinth.Decoder.Named.ScriptContext (
   JustValue,
   PairFst,
   PairSnd,
+  OutputDatumDatum,
 
   -- * V3 'TxInfo' field tags
   TxInfoInputs,
@@ -177,6 +178,14 @@ data PairSnd
 instance FieldAt PairFst (a, b) N0 a
 
 instance FieldAt PairSnd (a, b) N1 b
+
+{- | The payload of an inline @OutputDatum@ (Constr tag 2 of 'OutputDatum').
+COMMITS to the constructor without verifying the tag — check 'tagOf' first
+when inline presence is not an invariant.
+-}
+data OutputDatumDatum
+
+instance FieldAt OutputDatumDatum OutputDatum N0 Datum
 
 -- V3 'TxInfo' -------------------------------------------------------------------
 

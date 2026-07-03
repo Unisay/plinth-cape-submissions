@@ -105,6 +105,7 @@ library
     Plinth.Validator
     TwoPartyEscrow
     TwoPartyEscrow.Fixture
+    TwoPartyEscrow.Monadic
 
   build-depends:
     , directory
