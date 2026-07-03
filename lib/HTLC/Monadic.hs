@@ -9,12 +9,13 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
-
-{- No Plinth inliner override: the default budget reaches this validator's
-fee optimum — measured cost-identical per scenario to the best hand-swept
-inline-unconditional-growth (sweep table in git history). Re-sweep only if
-metrics regress after a structural change.
+{- Hand-swept Plinth inliner budget (sweep table in git history): inlining is
+what collapses the 'Validator' monad and fuses the decode walks. The default
+budget declines them: without this pragma the term is smaller (749 vs 1135
+bytes) but every claim/refund scenario executes more CPU/mem, netting
+total_fee_lovelace 82 930 vs 65 538. Re-sweep after structural changes.
 -}
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=52 #-}
 
 {- |
 The HTLC validator, written in @do@-notation on the early-termination
