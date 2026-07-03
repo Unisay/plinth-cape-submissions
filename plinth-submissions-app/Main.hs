@@ -18,6 +18,7 @@ import Factorial (factorialCode)
 import Fibonacci (fibonacciCode)
 import FibonacciIterative (fibonacciIterativeCode)
 import HTLC (htlcValidator)
+import HTLC.Monadic qualified as Monadic
 import LinearVesting (linearVestingValidator)
 import PlutusTx qualified
 import PlutusTx.Builtins.Internal (BuiltinData)
@@ -55,6 +56,9 @@ main = do
   writeCodeToFile
     "submissions/htlc/Plinth_1.45.0.0_Unisay/htlc.uplc"
     htlcValidatorCode
+  writeCodeToFile
+    "submissions/htlc/Plinth_1.45.0.0_Unisay_monadic/htlc.uplc"
+    Monadic.htlcValidatorCode
   writeCodeToFile
     "submissions/two_party_escrow/Plinth_1.45.0.0_Unisay/two_party_escrow.uplc"
     twoPartyEscrowValidatorCode
