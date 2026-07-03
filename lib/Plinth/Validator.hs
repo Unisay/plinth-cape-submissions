@@ -15,19 +15,18 @@ module Plinth.Validator (
   runValidator,
   validate,
 
-  -- * @do@-notation support (for @RebindableSyntax@ consumers)
+  -- * @QualifiedDo@ support (import qualified, write @V.do@)
   (>>=),
   (>>),
-  fromInteger,
 ) where
 
 import PlutusTx.Builtins.Internal (BuiltinUnit, unitval)
-import PlutusTx.Prelude (Bool, BuiltinString, Integer, traceError)
+import PlutusTx.Prelude (Bool, BuiltinString, traceError)
 
 {- Note [Zero-cost Validator monad]
 'Validator' is a @Cont@-style monad sequencing decode-or-abort steps and boolean
 guards into a FLAT chain while preserving short-circuit and on-demand (@asData@)
-decode. It compiles to zero overhead, without any plugin change, for two reasons:
+decode. It compiles to zero overhead for two reasons:
 
   * the combinators are @INLINE@, so GHC inlines them before the Plinth plugin
     runs and the PIR call-site threshold never gets to decline them;
@@ -71,26 +70,23 @@ validate :: BuiltinString -> Bool -> Validator ()
 validate msg cond = Validator (\k -> if cond then k () else traceError msg)
 
 --------------------------------------------------------------------------------
--- do-notation support ---------------------------------------------------------
+-- QualifiedDo support ----------------------------------------------------------
 --
--- A consumer writing a validator on the 'Validator' monad with @do@-notation enables
--- @RebindableSyntax@ and imports these (hiding the 'PlutusTx.Prelude'
--- counterparts), so the validator module carries no DSL plumbing of its own.
+-- A consumer writing a validator on the 'Validator' monad imports this module
+-- qualified (say, as @V@) and enables @QualifiedDo@: a @V.do@ block desugars
+-- with these operators; the module's unqualified @do@, @if@ and literals keep
+-- their ordinary meaning.
 
--- | @RebindableSyntax@ bind for @do@.
+-- | @QualifiedDo@ bind for @V.do@; 'bindValidator'.
 (>>=) :: Validator a -> (a -> Validator b) -> Validator b
 (>>=) = bindValidator
 {-# INLINE (>>=) #-}
 
--- | @RebindableSyntax@ sequencing for @do@.
+infixr 1 >>=
+
+-- | @QualifiedDo@ sequencing for @V.do@; 'thenValidator'.
 (>>) :: Validator a -> Validator b -> Validator b
 (>>) = thenValidator
 {-# INLINE (>>) #-}
 
-{- | @RebindableSyntax@ routes every integer literal through 'fromInteger', and
-the one 'PlutusTx.Prelude' exports targets 'Rational'. On-chain validator
-literals are 'Integer', so bind it to the identity.
--}
-fromInteger :: Integer -> Integer
-fromInteger n = n
-{-# INLINE fromInteger #-}
+infixr 1 >>
