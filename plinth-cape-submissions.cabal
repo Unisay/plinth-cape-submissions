@@ -94,8 +94,14 @@ library
     FibonacciIterative
     HTLC
     HTLC.Fixture
+    HTLC.Monadic
     LinearVesting
     LinearVesting.Fixture
+    Plinth.Decoder
+    Plinth.Decoder.Named
+    Plinth.Decoder.Named.ScriptContext
+    Plinth.Encoded
+    Plinth.Validator
     TwoPartyEscrow
     TwoPartyEscrow.Fixture
 

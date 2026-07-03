@@ -17,6 +17,7 @@ import Factorial (factorialCode)
 import Fibonacci (fibonacciCode)
 import FibonacciIterative (fibonacciIterativeCode)
 import HTLC (htlcValidatorCode)
+import HTLC.Monadic qualified as Monadic
 import LinearVesting (linearVestingValidatorCode)
 import PlutusTx.Code (CompiledCode)
 import TwoPartyEscrow (twoPartyEscrowValidatorCode)
@@ -29,20 +30,32 @@ plinthVersion :: FilePath
 plinthVersion = "Plinth_1.64.0.0_Unisay"
 #endif
 
--- | Write a compiled program to
--- @$CAPE_REPO/submissions/<scenario>/<plinthVersion>/<scenario>.uplc@.
--- The artifact name is derived from the scenario so it always matches
--- the directory.
-write :: FilePath -> CompiledCode a -> IO ()
-write scenario =
-  writeCodeToFile ("submissions/" <> scenario <> "/" <> plinthVersion <> "/" <> scenario <> ".uplc")
+{- | Write a compiled program to
+@$CAPE_REPO/submissions/<scenario>/<plinthVersion>[_<variant>]/<scenario>.uplc@.
+'Nothing' writes the base submission; @'Just' v@ appends @_v@ to the
+version directory for a variant submission. The artifact name is derived
+from the scenario so it always matches the directory.
+-}
+write :: FilePath -> Maybe String -> CompiledCode a -> IO ()
+write scenario variant =
+  writeCodeToFile
+    ( "submissions/"
+        <> scenario
+        <> "/"
+        <> plinthVersion
+        <> maybe "" ("_" <>) variant
+        <> "/"
+        <> scenario
+        <> ".uplc"
+    )
 
 main :: IO ()
 main = do
-  write "ecd" ecdCode
-  write "fibonacci_naive_recursion" fibonacciCode
-  write "fibonacci" fibonacciIterativeCode
-  write "factorial_naive_recursion" factorialCode
-  write "linear_vesting" linearVestingValidatorCode
-  write "htlc" htlcValidatorCode
-  write "two_party_escrow" twoPartyEscrowValidatorCode
+  write "ecd" Nothing ecdCode
+  write "fibonacci_naive_recursion" Nothing fibonacciCode
+  write "fibonacci" Nothing fibonacciIterativeCode
+  write "factorial_naive_recursion" Nothing factorialCode
+  write "linear_vesting" Nothing linearVestingValidatorCode
+  write "htlc" Nothing htlcValidatorCode
+  write "htlc" (Just "monadic") Monadic.htlcValidatorCode
+  write "two_party_escrow" Nothing twoPartyEscrowValidatorCode
