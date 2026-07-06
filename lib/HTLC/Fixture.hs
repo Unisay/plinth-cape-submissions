@@ -1,3 +1,6 @@
+-- `PlutusTx.AsData.asData` generates `match…` helper bindings that are part
+-- of its public API but unused here under the explicit export list.
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 {-# OPTIONS_GHC -fno-full-laziness #-}
 {-# OPTIONS_GHC -fno-ignore-interface-pragmas #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
@@ -9,8 +12,16 @@
 
 -- | Test fixture data for HTLC benchmark
 module HTLC.Fixture (
-  -- * Re-exported types
-  module HTLC,
+  -- * Datum and redeemer types
+  HTLCDatum,
+  HTLCRedeemer,
+  payer,
+  recipient,
+  secretHash,
+  timeout,
+  pattern HTLCDatum,
+  pattern Claim,
+  pattern Refund,
 
   -- * Participants
   payerKeyHash,
@@ -29,20 +40,35 @@ module HTLC.Fixture (
   scriptHash,
 ) where
 
-import HTLC (
-  HTLCDatum,
-  HTLCRedeemer,
-  payer,
-  recipient,
-  secretHash,
-  timeout,
-  pattern Claim,
-  pattern HTLCDatum,
-  pattern Refund,
- )
 import PlutusLedgerApi.Data.V3
+import PlutusTx.AsData (asData)
 import PlutusTx.Builtins.HasOpaque (stringToBuiltinByteStringHex)
 import Prelude
+
+--------------------------------------------------------------------------------
+-- Datum and Redeemer Types ----------------------------------------------------
+
+-- The datum and redeemer types are encoded as 'BuiltinData' via 'asData' rather
+-- than ordinary algebraic datatypes. The validator only inspects 3 of 4 datum
+-- fields per execution path, so lazy field extraction via the generated pattern
+-- synonyms is materially cheaper than the eager 'unsafeFromBuiltinData' decode
+-- that 'makeIsDataIndexed' would otherwise produce. See
+-- https://plutus.cardano.intersectmbo.org/docs/working-with-scripts/optimizing-scripts-with-asData
+asData
+  [d|
+    data HTLCDatum = HTLCDatum
+      { payer :: Address
+      , recipient :: Address
+      , secretHash :: BuiltinByteString
+      , timeout :: POSIXTime
+      }
+      deriving newtype (FromData, ToData, UnsafeFromData)
+
+    data HTLCRedeemer
+      = Claim BuiltinByteString
+      | Refund
+      deriving newtype (FromData, ToData, UnsafeFromData)
+    |]
 
 --------------------------------------------------------------------------------
 -- Participants ----------------------------------------------------------------
