@@ -104,6 +104,7 @@ library
     Plinth.Encoded
     Plinth.Validator
     TwoPartyEscrow
+    TwoPartyEscrow.AsData
     TwoPartyEscrow.Fixture
 
   build-depends:
