@@ -1,16 +1,4 @@
-{-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE ImportQualifiedPost #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE Strict #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE QualifiedDo #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 --
 {-# OPTIONS_GHC -fno-full-laziness #-}
@@ -21,204 +9,283 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
+{- Hand-swept inline-unconditional-growth (fee = total_fee_lovelace):
+     budget    fee
+     default   146727
+     20        140973
+     25        131889
+     28-30     130789
+     32-35     130661   <- optimum (chosen 32; -16066, -11% vs default)
+     40        131126
+     52        144163
+     60+       size blow-up (letrec peeling)
+   Re-sweep after structural changes. -}
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=32 #-}
 
+{- |
+The linear-vesting validator, written in @do@-notation on the
+early-termination 'Validator' monad, with all decoding going through the
+"Plinth.Decoder.Named" walk regions — the same recipe as "HTLC.Monadic".
+
+Everything stays 'Encoded' until a guard actually needs a number: the
+beneficiary is only compared against the signatories, the vesting asset's
+currency symbol and token name are only compared against 'Value' keys, and
+the datum-preservation check is one 'equalsData' — none of them is ever
+structurally decoded. Only the five schedule integers are.
+-}
 module LinearVesting (
-  linearVestingValidator,
   linearVestingValidatorCode,
-  VestingDatum (..),
-  VestingRedeemer (..),
+  linearVestingValidator,
 ) where
 
-import PlutusLedgerApi.Data.V3
-import PlutusTx
-import PlutusTx.Prelude
-import PlutusLedgerApi.V1.Data.Value (valueOf)
-import PlutusLedgerApi.V3.Data.Contexts (
-  findOwnInput,
-  getContinuingOutputs,
-  txSignedBy,
+import LinearVesting.Fixture (VestingDatum)
+import Plinth.Decoder.Named (
+  FieldAt,
+  N0,
+  N1,
+  N2,
+  N3,
+  N4,
+  N5,
+  N6,
+  atField,
+  field,
+  fields,
+  walk,
+  walkRaw,
+  yield,
  )
-import PlutusTx.Builtins (equalsInteger, lessThanEqualsInteger)
-import PlutusTx.Builtins.Internal (unitval)
-import PlutusTx.Data.List qualified as List
+import Plinth.Decoder.Named qualified as N
+import Plinth.Decoder.Named.ScriptContext (
+  AddressCredential,
+  BoundClosure,
+  BoundExtended,
+  FiniteValue,
+  IntervalFrom,
+  JustValue,
+  PairFst,
+  PairSnd,
+  PubKeyCredentialHash,
+  ScriptContextRedeemer,
+  ScriptContextScriptInfo,
+  ScriptContextTxInfo,
+  SpendingScriptDatum,
+  SpendingScriptOutRef,
+  TxInInfoOutRef,
+  TxInInfoResolved,
+  TxInfoInputs,
+  TxInfoOutputs,
+  TxInfoSignatories,
+  TxInfoValidRange,
+  TxOutAddress,
+  TxOutDatum,
+  TxOutValue,
+  assetAmount,
+ )
+import Plinth.Encoded (
+  Encoded,
+  anyE,
+  countE,
+  decode,
+  findE,
+  tagOf,
+ )
+import Plinth.Validator (
+  Validator,
+  runValidator,
+  validate,
+ )
+import Plinth.Validator qualified as V
+import PlutusLedgerApi.Data.V3 (
+  Address,
+  Credential,
+  CurrencySymbol,
+  Datum (getDatum),
+  LowerBound,
+  POSIXTime (getPOSIXTime),
+  POSIXTimeRange,
+  PubKeyHash,
+  ScriptContext,
+  ScriptInfo,
+  TokenName,
+  TxInInfo,
+  TxInfo,
+ )
+import PlutusTx qualified
+import PlutusTx.Code (CompiledCode)
+import PlutusTx.Data.List (List)
+import PlutusTx.Prelude
 
 --------------------------------------------------------------------------------
--- Datum and Redeemer Types ----------------------------------------------------
+-- Layout ------------------------------------------------------------------------
 
--- | Vesting parameters stored on-chain as inline datum
-data VestingDatum = VestingDatum
-  { beneficiary :: Address
-  , vestingAsset :: (CurrencySymbol, TokenName)
-  , totalVestingQty :: Integer
-  , vestingPeriodStart :: Integer
-  , vestingPeriodEnd :: Integer
-  , firstUnlockPossibleAfter :: Integer
-  , totalInstallments :: Integer
-  }
+-- The 'FieldAt' layout of 'VestingDatum' (Constr tag 0), one tag per record
+-- selector; declared here, next to the only consumer.
 
--- | Redeemer actions for the vesting validator
-data VestingRedeemer
-  = PartialUnlock
-  | FullUnlock
+data VestingBeneficiary
 
-makeIsDataIndexed ''VestingDatum [('VestingDatum, 0)]
-makeIsDataIndexed ''VestingRedeemer [('PartialUnlock, 0), ('FullUnlock, 1)]
+data VestingAsset
+
+data VestingTotalQty
+
+data VestingPeriodStart
+
+data VestingPeriodEnd
+
+data VestingFirstUnlockAfter
+
+data VestingTotalInstallments
+
+instance FieldAt VestingBeneficiary VestingDatum N0 Address
+
+instance FieldAt VestingAsset VestingDatum N1 (CurrencySymbol, TokenName)
+
+instance FieldAt VestingTotalQty VestingDatum N2 Integer
+
+instance FieldAt VestingPeriodStart VestingDatum N3 Integer
+
+instance FieldAt VestingPeriodEnd VestingDatum N4 Integer
+
+instance FieldAt VestingFirstUnlockAfter VestingDatum N5 Integer
+
+instance FieldAt VestingTotalInstallments VestingDatum N6 Integer
 
 --------------------------------------------------------------------------------
 -- Validator -------------------------------------------------------------------
 
-{- | Linear Vesting Validator
-
-Redeemer constants:
-  - PartialUnlock = 0() (withdraw proportional tokens)
-  - FullUnlock    = 1() (withdraw all after period ends)
-
-The validator reads VestingDatum from the ScriptInfo datum, not baked-in constants.
-All vesting parameters (beneficiary, asset, schedule) come from the datum.
--}
 linearVestingValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
-linearVestingValidatorCode = $$(compile [||linearVestingValidator||])
+linearVestingValidatorCode = $$(PlutusTx.compile [||linearVestingValidator||])
 
-{-# INLINEABLE linearVestingValidator #-}
 linearVestingValidator :: BuiltinData -> BuiltinUnit
-linearVestingValidator scriptContextData =
-  case redeemer of
-    PartialUnlock -> validatePartialUnlock ctx datum
-    FullUnlock -> validateFullUnlock ctx datum
-  where
-    ctx :: ScriptContext
-    ctx = unsafeFromBuiltinData scriptContextData
+linearVestingValidator ctxData = runValidator V.do
+  (txInfo, redeemer, scriptInfo) <-
+    walkRaw @ScriptContext ctxData
+      $ fields
+        @( ScriptContextTxInfo
+         , ScriptContextRedeemer
+         , ScriptContextScriptInfo
+         )
+  -- 'Redeemer' is a newtype over its content, so the tag read here is the
+  -- 'VestingRedeemer' constructor tag; a non-Constr redeemer fails right here.
+  let redeemerTag = tagOf redeemer
+  if
+    | redeemerTag == 0 -> validatePartialUnlock txInfo scriptInfo
+    | redeemerTag == 1 -> validateFullUnlock txInfo scriptInfo
+    | otherwise -> traceError "Invalid redeemer"
 
-    redeemer :: VestingRedeemer
-    redeemer = unsafeFromBuiltinData (getRedeemer (scriptContextRedeemer ctx))
+validatePartialUnlock :: Encoded TxInfo -> Encoded ScriptInfo -> Validator ()
+validatePartialUnlock txInfo scriptInfo = V.do
+  (ownRef, datumJust) <-
+    walk scriptInfo (fields @(SpendingScriptOutRef, SpendingScriptDatum))
+  datum <- walk datumJust (field @JustValue)
+  let datumBd = getDatum (decode datum)
+  (beneficiary, firstUnlockAfter) <-
+    walkRaw @VestingDatum datumBd
+      $ fields @(VestingBeneficiary, VestingFirstUnlockAfter)
+  (validRange, signatories) <-
+    walk txInfo (fields @(TxInfoValidRange, TxInfoSignatories))
+  validate "Missing beneficiary signature" do
+    signedBy beneficiary signatories
+  let currentTime = lowerBoundTime validRange
+  validate "Unlock not permitted until firstUnlockPossibleAfter time" do
+    currentTime > decode firstUnlockAfter
+  let inputs = atField @TxInfoInputs txInfo
+  let ownInput =
+        findE
+          "Own input not found"
+          (\i -> atField @TxInInfoOutRef i == ownRef)
+          inputs
+  let ownOut = atField @TxInInfoResolved ownInput
+  let ownAddress = atField @TxOutAddress ownOut
+  let continuingOut =
+        findE
+          "Own output not found"
+          (\o -> atField @TxOutAddress o == ownAddress)
+          (atField @TxInfoOutputs txInfo)
+  validate "Datum Modification Prohibited" do
+    atField @TxOutDatum ownOut == atField @TxOutDatum continuingOut
+  (asset, totalQty, periodStart, periodEnd, installments) <-
+    walkRaw @VestingDatum datumBd N.do
+      a <- field @VestingAsset
+      q <- field @VestingTotalQty
+      s <- field @VestingPeriodStart
+      e <- field @VestingPeriodEnd
+      n <- field @VestingTotalInstallments
+      yield (a, q, s, e, n)
+  (cs, tn) <- walk asset (fields @(PairFst, PairSnd))
+  let newRemainingQty = assetAmount (atField @TxOutValue continuingOut) cs tn
+  validate "Zero remaining assets not allowed" do
+    newRemainingQty > 0
+  validate "Remaining asset is not decreasing" do
+    newRemainingQty < assetAmount (atField @TxOutValue ownOut) cs tn
+  let totalInstallments = decode installments
+  let vestingPeriodEnd = decode periodEnd
+  let vestingPeriodLength = vestingPeriodEnd - decode periodStart
+  let vestingTimeRemaining = vestingPeriodEnd - currentTime
+  let timeBetweenTwoInstallments = divCeil vestingPeriodLength totalInstallments
+  let futureInstallments = divCeil vestingTimeRemaining timeBetweenTwoInstallments
+  let expectedRemainingQty =
+        divCeil (futureInstallments * decode totalQty) totalInstallments
+  validate "Mismatched remaining asset" do
+    expectedRemainingQty == newRemainingQty
+  validate "Double satisfaction" do
+    let ownCredential = atField @AddressCredential ownAddress
+    countE (\i -> inputCredential i == ownCredential) inputs == 1
 
-    datum :: VestingDatum
-    datum = spendingDatum (scriptContextScriptInfo ctx)
+validateFullUnlock :: Encoded TxInfo -> Encoded ScriptInfo -> Validator ()
+validateFullUnlock txInfo scriptInfo = V.do
+  datumJust <- walk scriptInfo (field @SpendingScriptDatum)
+  datum <- walk datumJust (field @JustValue)
+  (beneficiary, periodEnd) <-
+    walkRaw @VestingDatum (getDatum (decode datum))
+      $ fields @(VestingBeneficiary, VestingPeriodEnd)
+  (validRange, signatories) <-
+    walk txInfo (fields @(TxInfoValidRange, TxInfoSignatories))
+  validate "Missing beneficiary signature" do
+    signedBy beneficiary signatories
+  validate "Unlock not permitted until vestingPeriodEnd time" do
+    lowerBoundTime validRange > decode periodEnd
 
 --------------------------------------------------------------------------------
--- Validation Functions --------------------------------------------------------
+-- Guard predicates -----------------------------------------------------------
 
--- | Validates partial unlock: proportional withdrawal during vesting period.
-{-# INLINEABLE validatePartialUnlock #-}
-validatePartialUnlock :: ScriptContext -> VestingDatum -> BuiltinUnit
-validatePartialUnlock ctx VestingDatum {beneficiary, vestingAsset, totalVestingQty, vestingPeriodStart, vestingPeriodEnd, firstUnlockPossibleAfter, totalInstallments} =
-  if
-    | not signed ->
-        traceError "Missing beneficiary signature"
-    | lessThanEqualsInteger currentTime firstUnlockPossibleAfter ->
-        traceError "Unlock not permitted until firstUnlockPossibleAfter time"
-    | lessThanEqualsInteger newRemainingQty 0 ->
-        traceError "Zero remaining assets not allowed"
-    | lessThanEqualsInteger oldRemainingQty newRemainingQty ->
-        traceError "Remaining asset is not decreasing"
-    | not (equalsInteger expectedRemainingQty newRemainingQty) ->
-        traceError "Mismatched remaining asset"
-    | inputDatum /= outputDatum ->
-        traceError "Datum Modification Prohibited"
-    | not (equalsInteger (countScriptInputs txInfo scriptHash) 1) ->
-        traceError "Double satisfaction"
-    | otherwise -> unitval
-  where
-    txInfo = scriptContextTxInfo ctx
-
-    -- Beneficiary signature check
-    beneficiaryHash = extractPubKeyHash beneficiary
-    signed = txSignedBy txInfo (PubKeyHash beneficiaryHash)
-
-    -- Time extraction from valid range lower bound
-    POSIXTime currentTime = lowerBoundTime (txInfoValidRange txInfo)
-
-    -- Find own input and continuing output
-    !ownInput = case findOwnInput ctx of
-      Just txInInfo -> txInInfoResolved txInInfo
-      Nothing -> traceError "Own input not found"
-
-    continuingOuts = getContinuingOutputs ctx
-    !continuingOut = case List.uncons continuingOuts of
-      Just (out, _) -> out
-      Nothing -> traceError "Own output not found"
-
-    -- Asset quantities
-    (cs, tn) = vestingAsset
-    oldRemainingQty = valueOf (txOutValue ownInput) cs tn
-    newRemainingQty = valueOf (txOutValue continuingOut) cs tn
-
-    -- Vesting schedule calculation
-    vestingPeriodLength = vestingPeriodEnd - vestingPeriodStart
-    vestingTimeRemaining = vestingPeriodEnd - currentTime
-    timeBetweenTwoInstallments = divCeil vestingPeriodLength totalInstallments
-    futureInstallments = divCeil vestingTimeRemaining timeBetweenTwoInstallments
-    expectedRemainingQty =
-      divCeil (futureInstallments * totalVestingQty) totalInstallments
-
-    -- Datum preservation check
-    inputDatum = txOutDatum ownInput
-    outputDatum = txOutDatum continuingOut
-
-    -- Script hash for double satisfaction check
-    scriptHash = extractScriptHash ownInput
-
--- | Validates full unlock: complete withdrawal after vesting period ends.
-{-# INLINEABLE validateFullUnlock #-}
-validateFullUnlock :: ScriptContext -> VestingDatum -> BuiltinUnit
-validateFullUnlock ctx VestingDatum {beneficiary, vestingPeriodEnd} =
-  if
-    | not (txSignedBy txInfo (PubKeyHash beneficiaryHash)) ->
-        traceError "Missing beneficiary signature"
-    | lessThanEqualsInteger currentTime vestingPeriodEnd ->
-        traceError "Unlock not permitted until vestingPeriodEnd time"
-    | otherwise -> unitval
-  where
-    txInfo = scriptContextTxInfo ctx
-    beneficiaryHash = extractPubKeyHash beneficiary
-    POSIXTime currentTime = lowerBoundTime (txInfoValidRange txInfo)
+-- | True iff the address's payment 'PubKeyHash' is among the signatories.
+signedBy :: Encoded Address -> Encoded (List PubKeyHash) -> Bool
+signedBy addr signatories =
+  let cred = atField @AddressCredential addr
+   in if tagOf cred == 0
+        then anyE (== atField @PubKeyCredentialHash cred) signatories
+        else traceError "Expected PubKeyCredential address"
 
 --------------------------------------------------------------------------------
--- Helper Functions ------------------------------------------------------------
+-- Other helper functions -----------------------------------------------------
 
 -- | Integer ceiling division: divCeil(x, y) = 1 + ((x - 1) / y)
-{-# INLINEABLE divCeil #-}
 divCeil :: Integer -> Integer -> Integer
 divCeil x y = 1 + divide (x - 1) y
 
-{- | Extract the normalised inclusive lower bound from a POSIXTimeRange,
-failing if it is not finite.
--}
-{-# INLINEABLE lowerBoundTime #-}
-lowerBoundTime :: POSIXTimeRange -> POSIXTime
-lowerBoundTime (Interval (LowerBound (Finite t) True) _) = t
-lowerBoundTime (Interval (LowerBound (Finite (POSIXTime t)) False) _) = POSIXTime (t + 1)
-lowerBoundTime _ = traceError "Lower bound of valid range must be finite"
+-- | Earliest time in a validity range (finite lower bound, @+1@ if exclusive).
+lowerBoundTime :: Encoded POSIXTimeRange -> Integer
+lowerBoundTime range =
+  boundTime
+    1
+    "Lower bound of valid range must be finite"
+    (atField @IntervalFrom range)
 
--- | Extract PubKeyHash bytes from an Address.
-{-# INLINEABLE extractPubKeyHash #-}
-extractPubKeyHash :: Address -> BuiltinByteString
-extractPubKeyHash (Address (PubKeyCredential (PubKeyHash pkh)) _) = pkh
-extractPubKeyHash _ = traceError "Expected PubKeyCredential address"
+-- | The time of a finite lower interval bound, @+@'openAdj' when exclusive.
+boundTime ::
+  Integer -> BuiltinString -> Encoded (LowerBound POSIXTime) -> Integer
+boundTime openAdj msg bound =
+  let ext = atField @BoundExtended bound
+   in if tagOf ext == 1
+        then
+          let t = getPOSIXTime (decode (atField @FiniteValue ext))
+           in if tagOf (atField @BoundClosure bound) == 1
+                then t
+                else t + openAdj
+        else traceError msg
 
--- | Extract script hash from a TxOut address.
-{-# INLINEABLE extractScriptHash #-}
-extractScriptHash :: TxOut -> BuiltinByteString
-extractScriptHash TxOut {txOutAddress = Address (ScriptCredential (ScriptHash sh)) _} = sh
-extractScriptHash _ = traceError "Expected ScriptCredential address"
-
--- | Count inputs from a specific script address.
-{-# INLINEABLE countScriptInputs #-}
-countScriptInputs :: TxInfo -> BuiltinByteString -> Integer
-countScriptInputs txInfo scriptHash =
-  List.foldl
-    ( \acc TxInInfo {txInInfoResolved = TxOut {txOutAddress}} ->
-        case txOutAddress of
-          Address (ScriptCredential (ScriptHash sh)) _ ->
-            if sh == scriptHash then acc + 1 else acc
-          _ -> acc
-    )
-    0
-    (txInfoInputs txInfo)
-
--- | Extract VestingDatum from SpendingScript info.
-{-# INLINEABLE spendingDatum #-}
-spendingDatum :: ScriptInfo -> VestingDatum
-spendingDatum = \case
-  SpendingScript _ (Just datum) -> unsafeFromBuiltinData (getDatum datum)
-  _ -> traceError "Expected SpendingScript with datum"
+-- | The payment credential of a tx input; never decoded, only compared.
+inputCredential :: Encoded TxInInfo -> Encoded Credential
+inputCredential i =
+  atField @AddressCredential (atField @TxOutAddress (atField @TxInInfoResolved i))
