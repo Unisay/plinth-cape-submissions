@@ -93,7 +93,7 @@ library
     Fibonacci
     FibonacciIterative
     HTLC
-    HTLC.Monadic
+    HTLC.AsData
     HTLC.Fixture
     LinearVesting
     LinearVesting.Fixture

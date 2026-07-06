@@ -17,7 +17,7 @@ import Factorial (factorialCode)
 import Fibonacci (fibonacciCode)
 import FibonacciIterative (fibonacciIterativeCode)
 import HTLC (htlcValidatorCode)
-import HTLC.Monadic qualified as Monadic
+import HTLC.AsData qualified as HtlcAsData
 import LinearVesting (linearVestingValidatorCode)
 import PlutusTx.Code (CompiledCode)
 import TwoPartyEscrow (twoPartyEscrowValidatorCode)
@@ -57,5 +57,5 @@ main = do
   write "factorial_naive_recursion" Nothing factorialCode
   write "linear_vesting" Nothing linearVestingValidatorCode
   write "htlc" Nothing htlcValidatorCode
-  write "htlc" (Just "monadic") Monadic.htlcValidatorCode
+  write "htlc" (Just "asdata") HtlcAsData.htlcValidatorCode
   write "two_party_escrow" Nothing twoPartyEscrowValidatorCode
