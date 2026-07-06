@@ -9,9 +9,17 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
-{- Hand-swept Plinth inliner budget (sweep: default 141092, 20:141077,
-25-26:133843, 27:131889, 28-29:130643 <- plateau, 30-32:132131, 40:134743,
-52+: size blow-up). Re-sweep after structural changes. -}
+{- Hand-swept inline-unconditional-growth (fee = total_fee_lovelace):
+     budget    fee
+     default   141092
+     20        141077
+     25-26     133843
+     27        131889
+     28-29     130643   <- optimum (chosen 28; -10449, -7.4% vs default)
+     30-32     132131
+     40        134743
+     52+       size blow-up
+   Re-sweep after structural changes. -}
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=28 #-}
 
 {- |
