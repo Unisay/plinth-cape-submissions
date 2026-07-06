@@ -25,6 +25,8 @@ module TwoPartyEscrow.Fixture (
   sellerKeyHashBytes,
 
   -- * Script Address
+  scriptHash,
+  scriptCredential,
   scriptAddr,
 
   -- * Datum Types for State Management
@@ -82,14 +84,21 @@ sellerKeyHashBytes =
 --------------------------------------------------------------------------------
 -- Script Address ---------------------------------------------------------------
 
+-- | Script hash of the escrow validator.
+scriptHash :: ScriptHash
+scriptHash =
+  ScriptHash "1111111111111111111111111111111111111111111111111111111111"
+
+{- | The escrow script's own payment credential. Escrow-input recognition ties
+to this (ignoring any staking part) so an unrelated script UTxO of the same
+amount cannot stand in for the deposit.
+-}
+scriptCredential :: Credential
+scriptCredential = ScriptCredential scriptHash
+
 -- | Standard script address for UPLC validators
 scriptAddr :: Address
-scriptAddr =
-  Address
-    ( ScriptCredential
-        (ScriptHash "1111111111111111111111111111111111111111111111111111111111")
-    )
-    Nothing
+scriptAddr = Address scriptCredential Nothing
 
 --------------------------------------------------------------------------------
 -- Datum Types for State Management --------------------------------------------
