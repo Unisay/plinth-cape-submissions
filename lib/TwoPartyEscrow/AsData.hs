@@ -30,7 +30,6 @@ import PlutusTx.Prelude
 
 import PlutusLedgerApi.V1.Data.Value (lovelaceValueOf)
 import PlutusLedgerApi.V3.Data.Contexts (
-  getContinuingOutputs,
   txSignedBy,
   valuePaidTo,
  )
@@ -119,7 +118,7 @@ validateAccept ctx =
       traceError "Accept only valid from Deposited state"
   where
     currentState = escrowState (spendingScriptDatum scriptInfo)
-    outs = getContinuingOutputs ctx
+    outs = continuingScriptOutputs txInfo
     outCount = List.length outs
     txInfo = scriptContextTxInfo ctx
     scriptInfo = scriptContextScriptInfo ctx
@@ -159,6 +158,19 @@ getScriptOutputs txInfo = List.filter isScriptOutput (txInfoOutputs txInfo)
   where
     isScriptOutput txOut = txOutAddress txOut PlutusTx.== Fixed.scriptAddr
 
+{- | Outputs that keep funds under the escrow script's own payment credential,
+ignoring any staking part. Replaces 'getContinuingOutputs', whose full-Address
+match lets an output to the same credential with a staking credential attached
+slip past the incomplete-withdrawal guard while still locking the funds.
+-}
+{-# INLINEABLE continuingScriptOutputs #-}
+continuingScriptOutputs :: TxInfo -> List TxOut
+continuingScriptOutputs txInfo =
+  List.filter atEscrowCredential (txInfoOutputs txInfo)
+  where
+    atEscrowCredential txOut =
+      addressCredential (txOutAddress txOut) PlutusTx.== Fixed.scriptCredential
+
 -- | Checks if script output contains incorrect escrow amount.
 {-# INLINEABLE unexpectedAmountInScriptOutput #-}
 unexpectedAmountInScriptOutput :: TxOut -> Bool
@@ -192,19 +204,23 @@ invalidDepositDatum onlyOut validRange =
 missingSignature :: TxInfo -> PubKeyHash -> Bool
 missingSignature txInfo keyHash = not (txSignedBy txInfo keyHash)
 
--- | Checks if transaction lacks a valid escrow input with correct amount.
+{- | Checks if the transaction lacks a valid escrow input: one spending the
+escrow script's own payment credential (not merely any script credential,
+ignoring the staking part) and carrying exactly the escrow price. Matching a
+bare @ScriptCredential _@ would let an unrelated script UTxO of the same amount
+satisfy the guard.
+-}
 {-# INLINEABLE missingEscrowInput #-}
 missingEscrowInput :: List TxInInfo -> Bool
 missingEscrowInput =
   List.all \TxInInfo {txInInfoResolved = TxOut {txOutAddress, txOutValue}} ->
-    case txOutAddress of
-      Address (ScriptCredential _) _ ->
-        not
-          ( equalsInteger
-              (getLovelace (lovelaceValueOf txOutValue))
-              (getLovelace Fixed.escrowPrice)
-          )
-      _ -> True
+    not
+      ( addressCredential txOutAddress
+          PlutusTx.== Fixed.scriptCredential
+          && equalsInteger
+            (getLovelace (lovelaceValueOf txOutValue))
+            (getLovelace Fixed.escrowPrice)
+      )
 
 -- | Checks if escrow amount was not paid to the specified key hash.
 {-# INLINEABLE escrowValueNotPaidTo #-}
