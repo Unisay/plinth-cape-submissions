@@ -9,8 +9,9 @@
 
 -- | Test fixture data for LinearVesting benchmark
 module LinearVesting.Fixture (
-  -- * Re-exported types
-  module LinearVesting,
+  -- * Datum and redeemer types
+  VestingDatum (..),
+  VestingRedeemer (..),
 
   -- * Beneficiary Fixture Data
   beneficiaryKeyHash,
@@ -24,10 +25,32 @@ module LinearVesting.Fixture (
   scriptAddr,
 ) where
 
-import LinearVesting (VestingDatum (..), VestingRedeemer (..))
 import PlutusLedgerApi.Data.V3
+import PlutusTx (makeIsDataIndexed)
 import PlutusTx.Builtins.HasOpaque (stringToBuiltinByteStringHex)
 import Prelude
+
+--------------------------------------------------------------------------------
+-- Datum and Redeemer Types ----------------------------------------------------
+
+-- | Vesting parameters stored on-chain as inline datum
+data VestingDatum = VestingDatum
+  { beneficiary :: Address
+  , vestingAsset :: (CurrencySymbol, TokenName)
+  , totalVestingQty :: Integer
+  , vestingPeriodStart :: Integer
+  , vestingPeriodEnd :: Integer
+  , firstUnlockPossibleAfter :: Integer
+  , totalInstallments :: Integer
+  }
+
+-- | Redeemer actions for the vesting validator
+data VestingRedeemer
+  = PartialUnlock
+  | FullUnlock
+
+makeIsDataIndexed ''VestingDatum [('VestingDatum, 0)]
+makeIsDataIndexed ''VestingRedeemer [('PartialUnlock, 0), ('FullUnlock, 1)]
 
 --------------------------------------------------------------------------------
 -- Beneficiary Fixture Data ----------------------------------------------------

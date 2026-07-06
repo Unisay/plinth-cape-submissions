@@ -19,6 +19,7 @@ import FibonacciIterative (fibonacciIterativeCode)
 import HTLC (htlcValidatorCode)
 import HTLC.AsData qualified as HtlcAsData
 import LinearVesting (linearVestingValidatorCode)
+import LinearVesting.AsData qualified as LvAsData
 import PlutusTx.Code (CompiledCode)
 import TwoPartyEscrow (twoPartyEscrowValidatorCode)
 
@@ -56,6 +57,7 @@ main = do
   write "fibonacci" Nothing fibonacciIterativeCode
   write "factorial_naive_recursion" Nothing factorialCode
   write "linear_vesting" Nothing linearVestingValidatorCode
+  write "linear_vesting" (Just "asdata") LvAsData.linearVestingValidatorCode
   write "htlc" Nothing htlcValidatorCode
   write "htlc" (Just "asdata") HtlcAsData.htlcValidatorCode
   write "two_party_escrow" Nothing twoPartyEscrowValidatorCode

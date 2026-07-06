@@ -96,6 +96,7 @@ library
     HTLC.AsData
     HTLC.Fixture
     LinearVesting
+    LinearVesting.AsData
     LinearVesting.Fixture
     Plinth.Decoder
     Plinth.Decoder.Named
