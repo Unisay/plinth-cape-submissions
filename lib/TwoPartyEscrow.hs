@@ -9,17 +9,17 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
-{- Hand-swept inline-unconditional-growth (fee = total_fee_lovelace):
+{- Hand-swept inline-unconditional-growth (fee = total_fee_lovelace),
+   re-swept after the escrow-input / withdrawal-credential hardening:
      budget    fee
-     default   141092
-     20        141077
-     25-26     133843
-     27        131889
-     28-29     130643   <- optimum (chosen 28; -10449, -7.4% vs default)
-     30-32     132131
-     40        134743
-     52+       size blow-up
-   Re-sweep after structural changes. -}
+     default   143290
+     24-26     136041
+     27        134072
+     28-29     132826   <- optimum (chosen 28; -10464, -7.3% vs default)
+     30-32     134314   (script size jumps to 1885 B, outweighing cpu savings)
+     35        134644
+   Optimum unchanged from the pre-hardening sweep (still 28). Re-sweep after
+   structural changes. -}
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=28 #-}
 
 {- |
@@ -31,9 +31,9 @@ constants, so every comparison against them is one 'equalsData' on raw
 bytes: the datum's state is checked by constructor tag alone, payments are
 summed by folding the outputs' raw lovelace entries ('foldE' +
 'assetAmount') instead of decoding and unioning whole 'Value's the way
-@valuePaidTo@ does, and an escrow input is recognised by credential tag
-plus raw amount. The only structural decodes left are the deposit-time
-integer and the interval bounds.
+@valuePaidTo@ does, and an escrow input is recognised by its payment
+credential equalling the script's own plus raw amount. The only structural
+decodes left are the deposit-time integer and the interval bounds.
 -}
 module TwoPartyEscrow (
   twoPartyEscrowValidatorCode,
@@ -206,10 +206,19 @@ validateAccept txInfo scriptInfo = V.do
           "Own input not found"
           (\i -> atField @TxInInfoOutRef i == ownRef)
           inputs
-  let ownAddress = atField @TxOutAddress (atField @TxInInfoResolved ownInput)
+  let ownCred =
+        atField @AddressCredential
+          (atField @TxOutAddress (atField @TxInInfoResolved ownInput))
   let outputs = atField @TxInfoOutputs txInfo
+  -- Compare the payment credential only: an output to the same credential with
+  -- a staking part attached still locks funds under this validator and must be
+  -- rejected as an incomplete withdrawal.
   validate "Incomplete withdrawal - funds remain in script" do
-    not (anyE (\o -> atField @TxOutAddress o == ownAddress) outputs)
+    not
+      ( anyE
+          (\o -> atField @AddressCredential (atField @TxOutAddress o) == ownCred)
+          outputs
+      )
   validate "No valid escrow deposit found in inputs" do
     anyE isEscrowInput inputs
   validate "Incorrect payment to seller" do
@@ -268,12 +277,22 @@ escrowDatum datumJust = V.do
 escrowPrice :: Integer
 escrowPrice = getLovelace Fixed.escrowPrice
 
--- | A script-credential input carrying exactly the escrow price.
+{- | The escrow script's own payment credential, as a raw view for one
+'equalsData' comparison.
+-}
+escrowCredential :: Encoded Credential
+escrowCredential = encoded Fixed.scriptCredential
+
+{- | An input spending the escrow script's own credential and carrying exactly
+the escrow price. Matching the script's own credential — not merely any script
+credential — stops an unrelated script UTxO of the same amount from standing in
+for the deposit.
+-}
 isEscrowInput :: Encoded TxInInfo -> Bool
 isEscrowInput i =
   let out = atField @TxInInfoResolved i
-   in tagOf (atField @AddressCredential (atField @TxOutAddress out))
-        == 1
+   in atField @AddressCredential (atField @TxOutAddress out)
+        == escrowCredential
         && lovelaceOf out
         == escrowPrice
 
