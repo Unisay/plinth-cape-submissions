@@ -1,3 +1,6 @@
+-- `PlutusTx.AsData.asData` generates `match…` helper bindings that are part
+-- of its public API but unused here under the explicit export list.
+{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 {-# OPTIONS_GHC -fno-full-laziness #-}
 {-# OPTIONS_GHC -fno-ignore-interface-pragmas #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}

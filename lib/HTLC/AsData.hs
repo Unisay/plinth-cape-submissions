@@ -13,9 +13,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE NoImplicitPrelude #-}
--- `PlutusTx.AsData.asData` generates `match…` helpers that are part of
--- its public API but unused inside this module.
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
 --
 {-# OPTIONS_GHC -fno-full-laziness #-}
 {-# OPTIONS_GHC -fno-ignore-interface-pragmas #-}
@@ -31,7 +28,7 @@ scripts/sweep-inline.sh): smallest uncond value reaching the deepest
 cpu_units.sum plateau (≈15.4% reduction vs default). callsite stays at
 default — for HTLC it adds nothing once uncond is tuned.
 
-Sweep results (callsite=default, splice in HTLC.hs, Plinth 1.64.0.0):
+Sweep results (callsite=default, splice in HTLC.AsData, Plinth 1.64.0.0):
 
   uncond  cpu_units.sum  memory_units.sum  script_size  term_size
   ──────  ─────────────  ────────────────  ───────────  ─────────
