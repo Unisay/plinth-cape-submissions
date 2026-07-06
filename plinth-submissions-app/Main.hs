@@ -21,6 +21,7 @@ import HTLC.Monadic qualified as Monadic
 import LinearVesting (linearVestingValidatorCode)
 import PlutusTx.Code (CompiledCode)
 import TwoPartyEscrow (twoPartyEscrowValidatorCode)
+import TwoPartyEscrow.AsData qualified as TpeAsData
 
 #ifdef PREVIEW
 plinthVersion :: FilePath
@@ -59,3 +60,4 @@ main = do
   write "htlc" Nothing htlcValidatorCode
   write "htlc" (Just "monadic") Monadic.htlcValidatorCode
   write "two_party_escrow" Nothing twoPartyEscrowValidatorCode
+  write "two_party_escrow" (Just "asdata") TpeAsData.twoPartyEscrowValidatorCode
