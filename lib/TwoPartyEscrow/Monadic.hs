@@ -78,7 +78,7 @@ import Plinth.Decoder.Named.ScriptContext (
   assetAmount,
  )
 import Plinth.Encoded (
-  Encoded,
+  Encoded (Encoded),
   anyE,
   decode,
   encoded,
@@ -221,14 +221,14 @@ must come back to the buyer and only after @depositTime + refundTime@.
 validateRefund :: Encoded TxInfo -> Encoded ScriptInfo -> Validator ()
 validateRefund txInfo scriptInfo = V.do
   datumJust <- walk scriptInfo (field @SpendingScriptDatum)
-  (state, datumBd) <- escrowDatum datumJust
+  (state, datumEsc) <- escrowDatum datumJust
   validate "Refund only valid from Deposited state" do
     tagOf state == 0 -- Deposited
   (validRange, signatories) <-
     walk txInfo (fields @(TxInfoValidRange, TxInfoSignatories))
   validate "Buyer signature missing" do
     anyE (== encoded Fixed.buyerKeyHash) signatories
-  depositTime <- walkRaw @EscrowDatum datumBd (field @EscrowDatumTime)
+  depositTime <- walk datumEsc (field @EscrowDatumTime)
   validate "Refund time not reached" do
     lowerBoundTime validRange
       > getPOSIXTime (decode depositTime)
@@ -246,19 +246,20 @@ validateRefund txInfo scriptInfo = V.do
 -- Decoding helpers -------------------------------------------------------------
 
 {- | Unwrap the spending datum's @Just@ once: the state field (checked by
-'tagOf' at the call sites) plus the datum's raw bytes, so a branch that
-later needs another field re-walks the datum without re-unwrapping.
+'tagOf' at the call sites) plus the datum as an 'Encoded' 'EscrowDatum'
+view, so a branch that later needs another field re-walks it without
+re-unwrapping.
 Grabbing the time field here as well measures WORSE (+180 fee) — the same
 early-grab loss as HTLC's and LinearVesting's region-merge experiments.
 -}
 escrowDatum ::
-  Encoded (Maybe Datum) -> Validator (Encoded EscrowState, BuiltinData)
+  Encoded (Maybe Datum) -> Validator (Encoded EscrowState, Encoded EscrowDatum)
 escrowDatum datumJust = V.do
   datum <- walk datumJust (field @JustValue)
   let datumBd = getDatum (decode datum)
   walkRaw @EscrowDatum datumBd N.do
     state <- field @EscrowDatumState
-    yield (state, datumBd)
+    yield (state, Encoded datumBd)
 
 --------------------------------------------------------------------------------
 -- Guard predicates -------------------------------------------------------------
