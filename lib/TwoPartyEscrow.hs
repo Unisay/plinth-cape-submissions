@@ -12,17 +12,17 @@
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 
-{- Hand-swept inline-unconditional-growth (fee = total_fee_lovelace),
-   re-swept after the escrow-input / withdrawal-credential hardening:
+{- Hand-swept inline-unconditional-growth, re-swept against the CAPE
+   schema-2.0.0 objective (happy-path-only total_fee_lovelace):
      budget    fee
-     default   143290
-     24-26     136041
-     27        134072
-     28-29     132826   <- optimum (chosen 28; -10464, -7.3% vs default)
-     30-32     134314   (script size jumps to 1885 B, outweighing cpu savings)
-     35        134644
-   Optimum unchanged from the pre-hardening sweep (still 28). Re-sweep after
-   structural changes.
+     default   110590
+     20        110575
+     24-26     104726
+     27        102772
+     28-29     101588   <- optimum (kept 28; -9002, -8.1% vs default)
+     30-32     104461   (script size jumps to 1885 B, outweighing cpu savings)
+   Optimum unchanged from the summed-aggregation sweep (still 28); the
+   artifact is byte-identical. Re-sweep after structural changes.
 
    The PREVIEW build (datatypes=BuiltinCasing + dropList skip emission)
    inverts the tradeoff — builtin casing needs no inliner-driven matcher

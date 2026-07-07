@@ -12,16 +12,15 @@
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 
-{- Hand-swept inline-unconditional-growth (fee = total_fee_lovelace):
+{- Hand-swept inline-unconditional-growth, re-swept against the CAPE
+   schema-2.0.0 objective (happy-path-only total_fee_lovelace) after the
+   single-region datum decode in 'validatePartialUnlock':
      budget    fee
-     default   146727
-     20        140973
-     25        131889
-     28-30     130789
-     32-35     130661   <- optimum (chosen 32; -16066, -11% vs default)
-     40        131126
-     52        144163
-     60+       size blow-up (letrec peeling)
+     default   63086
+     24        59176
+     25-40     59048    <- optimum plateau (kept 32; -4038, -6.4% vs default)
+     48        65607
+     60        80891    (size blow-up: letrec peeling)
    Re-sweep after structural changes.
 
    The PREVIEW build (datatypes=BuiltinCasing + dropList skip emission)
@@ -35,7 +34,9 @@
      20             52219
      24             52414
      32             59496
-     48             60066 -}
+     48             60066
+   (table pre-dates the single-region datum decode, which improved the
+   preview build too: 50056 -> 49805 at the kept budget 12) -}
 #ifdef PREVIEW
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=12 #-}
 #else
@@ -199,9 +200,27 @@ validatePartialUnlock txInfo scriptInfo = V.do
     walk scriptInfo (fields @(SpendingScriptOutRef, SpendingScriptDatum))
   datum <- walk datumJust (field @JustValue)
   let datumBd = getDatum (decode datum)
-  (beneficiary, firstUnlockAfter) <-
-    walkRaw @VestingDatum datumBd
-      $ fields @(VestingBeneficiary, VestingFirstUnlockAfter)
+  -- One region for all seven datum fields: the partial-unlock guards and the
+  -- quantity arithmetic reach every field on the happy path, so a single
+  -- spine walk beats the earlier beneficiary/firstUnlockAfter + rest split
+  -- (measured -119 fee under happy-path-only scoring).
+  ( beneficiary
+    , asset
+    , totalQty
+    , periodStart
+    , periodEnd
+    , firstUnlockAfter
+    , installments
+    ) <-
+    walkRaw @VestingDatum datumBd N.do
+      b <- field @VestingBeneficiary
+      a <- field @VestingAsset
+      q <- field @VestingTotalQty
+      s <- field @VestingPeriodStart
+      e <- field @VestingPeriodEnd
+      u <- field @VestingFirstUnlockAfter
+      n <- field @VestingTotalInstallments
+      yield (b, a, q, s, e, u, n)
   (validRange, signatories) <-
     walk txInfo (fields @(TxInfoValidRange, TxInfoSignatories))
   validate "Missing beneficiary signature" do
@@ -224,14 +243,6 @@ validatePartialUnlock txInfo scriptInfo = V.do
           (atField @TxInfoOutputs txInfo)
   validate "Datum Modification Prohibited" do
     atField @TxOutDatum ownOut == atField @TxOutDatum continuingOut
-  (asset, totalQty, periodStart, periodEnd, installments) <-
-    walkRaw @VestingDatum datumBd N.do
-      a <- field @VestingAsset
-      q <- field @VestingTotalQty
-      s <- field @VestingPeriodStart
-      e <- field @VestingPeriodEnd
-      n <- field @VestingTotalInstallments
-      yield (a, q, s, e, n)
   (cs, tn) <- walk asset (fields @(PairFst, PairSnd))
   let newRemainingQty = assetAmount (atField @TxOutValue continuingOut) cs tn
   validate "Zero remaining assets not allowed" do
