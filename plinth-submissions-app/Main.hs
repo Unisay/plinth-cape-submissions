@@ -19,8 +19,10 @@ import FibonacciIterative (fibonacciIterativeCode)
 import HTLC (htlcValidatorCode)
 import HTLC.Monadic qualified as Monadic
 import LinearVesting (linearVestingValidatorCode)
+import LinearVesting.Monadic qualified as LvMonadic
 import PlutusTx.Code (CompiledCode)
 import TwoPartyEscrow (twoPartyEscrowValidatorCode)
+import TwoPartyEscrow.Monadic qualified as TpeMonadic
 
 #ifdef PREVIEW
 plinthVersion :: FilePath
@@ -56,6 +58,8 @@ main = do
   write "fibonacci" Nothing fibonacciIterativeCode
   write "factorial_naive_recursion" Nothing factorialCode
   write "linear_vesting" Nothing linearVestingValidatorCode
+  write "linear_vesting" (Just "monadic") LvMonadic.linearVestingValidatorCode
   write "htlc" Nothing htlcValidatorCode
   write "htlc" (Just "monadic") Monadic.htlcValidatorCode
   write "two_party_escrow" Nothing twoPartyEscrowValidatorCode
+  write "two_party_escrow" (Just "monadic") TpeMonadic.twoPartyEscrowValidatorCode
