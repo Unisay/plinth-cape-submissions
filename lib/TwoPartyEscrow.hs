@@ -1,3 +1,5 @@
+-- CPP only selects the per-build inliner budget below.
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE QualifiedDo #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 --
@@ -9,6 +11,7 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
+
 {- Hand-swept inline-unconditional-growth (fee = total_fee_lovelace),
    re-swept after the escrow-input / withdrawal-credential hardening:
      budget    fee
@@ -19,8 +22,25 @@
      30-32     134314   (script size jumps to 1885 B, outweighing cpu savings)
      35        134644
    Optimum unchanged from the pre-hardening sweep (still 28). Re-sweep after
-   structural changes. -}
+   structural changes.
+
+   The PREVIEW build (datatypes=BuiltinCasing + dropList skip emission)
+   inverts the tradeoff — builtin casing needs no inliner-driven matcher
+   repair, so a raised budget only duplicates code (at 28 the artifact
+   is 2390 B vs 1495 B). Swept separately (preview evaluator,
+   schema-2.0.0 happy-path fee):
+     budget         fee
+     default(1)-12  83342   <- optimum (chosen 12; the whole low region ties)
+     16             83429
+     20             86809
+     24             87499
+     28             87811
+     48             89808 -}
+#ifdef PREVIEW
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=12 #-}
+#else
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=28 #-}
+#endif
 
 {- |
 The two-party-escrow validator on the 'Validator' monad and
