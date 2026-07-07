@@ -90,6 +90,7 @@ library
     HTLC.Monadic
     LinearVesting
     LinearVesting.Fixture
+    LinearVesting.Monadic
     Plinth.Decoder
     Plinth.Decoder.Named
     Plinth.Decoder.Named.ScriptContext
@@ -97,6 +98,7 @@ library
     Plinth.Validator
     TwoPartyEscrow
     TwoPartyEscrow.Fixture
+    TwoPartyEscrow.Monadic
 
   build-depends:
     , directory

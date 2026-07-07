@@ -20,11 +20,13 @@ import FibonacciIterative (fibonacciIterativeCode)
 import HTLC (htlcValidator)
 import HTLC.Monadic qualified as Monadic
 import LinearVesting (linearVestingValidator)
+import LinearVesting.Monadic qualified as LvMonadic
 import PlutusTx qualified
 import PlutusTx.Builtins.Internal (BuiltinData)
 import PlutusTx.Code (CompiledCode)
 import PlutusTx.Prelude (BuiltinUnit)
 import TwoPartyEscrow (twoPartyEscrowValidatorCode)
+import TwoPartyEscrow.Monadic qualified as TpeMonadic
 
 -- Compile splices live here (not in HTLC.hs / LinearVesting.hs) as a workaround
 -- for a PlutusTx plugin interaction: having @$$(compile ...)@ in the source
@@ -54,6 +56,9 @@ main = do
     "submissions/linear_vesting/Plinth_1.45.0.0_Unisay/linear_vesting.uplc"
     linearVestingValidatorCode
   writeCodeToFile
+    "submissions/linear_vesting/Plinth_1.45.0.0_Unisay_monadic/linear_vesting.uplc"
+    LvMonadic.linearVestingValidatorCode
+  writeCodeToFile
     "submissions/htlc/Plinth_1.45.0.0_Unisay/htlc.uplc"
     htlcValidatorCode
   writeCodeToFile
@@ -62,3 +67,6 @@ main = do
   writeCodeToFile
     "submissions/two_party_escrow/Plinth_1.45.0.0_Unisay/two_party_escrow.uplc"
     twoPartyEscrowValidatorCode
+  writeCodeToFile
+    "submissions/two_party_escrow/Plinth_1.45.0.0_Unisay_monadic/two_party_escrow.uplc"
+    TpeMonadic.twoPartyEscrowValidatorCode
