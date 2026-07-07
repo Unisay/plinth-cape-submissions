@@ -1,3 +1,5 @@
+-- CPP only selects the per-build inliner budget below.
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE QualifiedDo #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 --
@@ -9,6 +11,7 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
+
 {- Hand-swept inline-unconditional-growth (fee = total_fee_lovelace):
      budget    fee
      default   146727
@@ -19,8 +22,25 @@
      40        131126
      52        144163
      60+       size blow-up (letrec peeling)
-   Re-sweep after structural changes. -}
+   Re-sweep after structural changes.
+
+   The PREVIEW build (datatypes=BuiltinCasing + dropList skip emission)
+   inverts the tradeoff — builtin casing needs no inliner-driven matcher
+   repair, so a raised budget only duplicates code (at 32 the artifact
+   is 1684 B vs 894 B). Swept separately (preview evaluator,
+   schema-2.0.0 happy-path fee):
+     budget         fee
+     default(1)-4   50169
+     8-16           50056   <- optimum (chosen 12; -113 vs default)
+     20             52219
+     24             52414
+     32             59496
+     48             60066 -}
+#ifdef PREVIEW
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=12 #-}
+#else
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=32 #-}
+#endif
 
 {- |
 The linear-vesting validator, written in @do@-notation on the
