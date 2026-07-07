@@ -1,4 +1,9 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+-- CPP selects the skip-emission strategy: the PREVIEW build compiles a
+-- 3-or-more-field cursor gap to ONE @dropList@ call (a batch-6 builtin,
+-- not yet on mainnet); the production build unrolls every gap into
+-- @tailList@ steps. See Note [Emitting dropList for wide gaps].
+{-# LANGUAGE CPP #-}
 -- DataKinds is needed ONLY for the 'TypeError' catch-all instances; the
 -- promoted 'ErrorMessage' kind never reaches the plugin, because those
 -- instances are selected exclusively in programs that FAIL to type-check.
@@ -95,6 +100,9 @@ import Plinth.Decoder (
   fieldRaw,
   pureDecoder,
   skip,
+#ifdef PREVIEW
+  skips,
+#endif
   thenDecoder,
   walking,
  )
@@ -287,9 +295,112 @@ instance
   ) =>
   Minus a b gap
 
+{- Note [Emitting dropList for wide gaps]
+A cursor gap compiles to @tailList@ steps or to one @dropList n@ call.
+Measured head to head on one field projection with the gap emitted both
+ways, replicating the CAPE measurement pipeline (CEK cost model
+variant E, @serialiseCompiledCode@ size, mainnet fee prices): a chained
+@tailList@ step costs 113 663 CPU (81 663 builtin + apply + force) and
+2 bytes of term, while @dropList@ costs 116 711 + 1 957·n CPU in ONE
+call whose term size does not grow with the gap. Total fee of the
+projection through a gap of n:
+
+  gap        1    2    3    4    5    6    7    8
+  chain fee  594  645  697  748  800  852  903  955
+  drop  fee  654  654  654  654  654  654  654  655
+
+The single call wins on cpu from a 2-field gap; on the primary
+objective (total_fee_lovelace) the crossover is a 3-field gap — at 2 the
+chain still wins by 9 lovelace because the drop spelling is one byte
+larger. From 3 up the call wins on every axis at once, so the threshold
+needs no per-axis compromise.
+
+@dropList@ is a batch-6 builtin — PlutusV3 accepts it only from the
+van Rossem protocol version, which is not on mainnet — so the emission is
+gated to the PREVIEW build (same track as @datatypes=BuiltinCasing@).
+The production build keeps the pure @tailList@ induction and its
+artifacts stay byte-identical.
+
+The gap count crosses from type to term as a HAND-WRITTEN literal in one
+closed instance per gap (3..15, the 'FieldAt' index range). Deriving the
+literal from the type (an inductive @1 + natVal \@p@) does not survive the
+trip: the plugin compiles the UNSIMPLIFIED unfoldings of INLINE bindings,
+so the addition chain reaches it unfolded and is rejected as a reference
+to @GHC.Num.Integer.integerAdd@ — constant folding is a simplifier pass
+the plugin never benefits from.
+-}
+
 -- | Compile-time unrolling of the @skip@ chain covering a cursor gap.
 class SkipsTo p where
   skipsThen :: Decoder a -> Decoder a
+
+#ifdef PREVIEW
+
+instance SkipsTo Z where
+  skipsThen d = d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S Z) where
+  skipsThen d = skip `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S (S Z)) where
+  skipsThen d = skip `thenDecoder` skip `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S (S (S Z))) where
+  skipsThen d = skips 3 `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S (S (S (S Z)))) where
+  skipsThen d = skips 4 `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S (S (S (S (S Z))))) where
+  skipsThen d = skips 5 `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S (S (S (S (S (S Z)))))) where
+  skipsThen d = skips 6 `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S (S (S (S (S (S (S Z))))))) where
+  skipsThen d = skips 7 `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S (S (S (S (S (S (S (S Z)))))))) where
+  skipsThen d = skips 8 `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S (S (S (S (S (S (S (S (S Z))))))))) where
+  skipsThen d = skips 9 `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S (S (S (S (S (S (S (S (S (S Z)))))))))) where
+  skipsThen d = skips 10 `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S (S (S (S (S (S (S (S (S (S (S Z))))))))))) where
+  skipsThen d = skips 11 `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S (S (S (S (S (S (S (S (S (S (S (S Z)))))))))))) where
+  skipsThen d = skips 12 `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S (S (S (S (S (S (S (S (S (S (S (S (S Z))))))))))))) where
+  skipsThen d = skips 13 `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S (S (S (S (S (S (S (S (S (S (S (S (S (S Z)))))))))))))) where
+  skipsThen d = skips 14 `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+instance SkipsTo (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S Z))))))))))))))) where
+  skipsThen d = skips 15 `thenDecoder` d
+  {-# INLINE skipsThen #-}
+
+#else
 
 instance SkipsTo Z where
   skipsThen d = d
@@ -298,6 +409,8 @@ instance SkipsTo Z where
 instance SkipsTo p => SkipsTo (S p) where
   skipsThen d = skip `thenDecoder` skipsThen @p d
   {-# INLINE skipsThen #-}
+
+#endif
 
 {- | A 'Decoder' whose cursor position is tracked in the type: @i@ is the
 Constr index under the cursor before the step, @j@ after. Phantom-only — the
@@ -423,8 +536,78 @@ instance
   {-# INLINE fields #-}
 
 -- | Compile-time unrolling of a PURE walk to a field (for 'atField').
+-- The gap-emission strategy mirrors 'SkipsTo' — see
+-- Note [Emitting dropList for wide gaps].
 class Drops p where
   drops :: BI.BuiltinList BuiltinData -> BI.BuiltinList BuiltinData
+
+#ifdef PREVIEW
+
+instance Drops Z where
+  drops s = s
+  {-# INLINE drops #-}
+
+instance Drops (S Z) where
+  drops s = wrapTail s
+  {-# INLINE drops #-}
+
+instance Drops (S (S Z)) where
+  drops s = wrapTail (wrapTail s)
+  {-# INLINE drops #-}
+
+instance Drops (S (S (S Z))) where
+  drops s = BI.drop 3 s
+  {-# INLINE drops #-}
+
+instance Drops (S (S (S (S Z)))) where
+  drops s = BI.drop 4 s
+  {-# INLINE drops #-}
+
+instance Drops (S (S (S (S (S Z))))) where
+  drops s = BI.drop 5 s
+  {-# INLINE drops #-}
+
+instance Drops (S (S (S (S (S (S Z)))))) where
+  drops s = BI.drop 6 s
+  {-# INLINE drops #-}
+
+instance Drops (S (S (S (S (S (S (S Z))))))) where
+  drops s = BI.drop 7 s
+  {-# INLINE drops #-}
+
+instance Drops (S (S (S (S (S (S (S (S Z)))))))) where
+  drops s = BI.drop 8 s
+  {-# INLINE drops #-}
+
+instance Drops (S (S (S (S (S (S (S (S (S Z))))))))) where
+  drops s = BI.drop 9 s
+  {-# INLINE drops #-}
+
+instance Drops (S (S (S (S (S (S (S (S (S (S Z)))))))))) where
+  drops s = BI.drop 10 s
+  {-# INLINE drops #-}
+
+instance Drops (S (S (S (S (S (S (S (S (S (S (S Z))))))))))) where
+  drops s = BI.drop 11 s
+  {-# INLINE drops #-}
+
+instance Drops (S (S (S (S (S (S (S (S (S (S (S (S Z)))))))))))) where
+  drops s = BI.drop 12 s
+  {-# INLINE drops #-}
+
+instance Drops (S (S (S (S (S (S (S (S (S (S (S (S (S Z))))))))))))) where
+  drops s = BI.drop 13 s
+  {-# INLINE drops #-}
+
+instance Drops (S (S (S (S (S (S (S (S (S (S (S (S (S (S Z)))))))))))))) where
+  drops s = BI.drop 14 s
+  {-# INLINE drops #-}
+
+instance Drops (S (S (S (S (S (S (S (S (S (S (S (S (S (S (S Z))))))))))))))) where
+  drops s = BI.drop 15 s
+  {-# INLINE drops #-}
+
+#else
 
 instance Drops Z where
   drops s = s
@@ -433,6 +616,8 @@ instance Drops Z where
 instance Drops p => Drops (S p) where
   drops s = drops @p (wrapTail s)
   {-# INLINE drops #-}
+
+#endif
 
 {- | Pure single-field projection: one walk of the node to the tagged field,
 usable inside guards (no monad, no region). For extracting SEVERAL fields of
