@@ -28,10 +28,18 @@ module Plinth.Encoded (
 
   -- * Lookup in encoded maps
   lookupE,
+  lookupBytesE,
 ) where
 
 import PlutusTx.AsData.Internal (wrapUnsafeDataAsConstr)
-import PlutusTx.Builtins (BuiltinString, equalsData, matchList, matchList')
+import PlutusTx.Builtins (
+  BuiltinByteString,
+  BuiltinString,
+  equalsByteString,
+  equalsData,
+  matchList,
+  matchList',
+ )
 import PlutusTx.Builtins.Internal (BuiltinData, BuiltinInteger)
 import PlutusTx.Builtins.Internal qualified as BI
 import PlutusTx.Data.AssocMap (Map)
@@ -142,3 +150,19 @@ lookupE (Encoded k) missing found (Encoded d) = go (BI.unsafeDataAsMap d)
     go xs = matchList' xs missing \h t ->
       if equalsData k (BI.fst h) then found (Encoded (BI.snd h)) else go t
 {-# INLINEABLE lookupE #-}
+
+{- | Like 'lookupE', but for a map whose keys are bytestrings (e.g. the
+'CurrencySymbol' \/ 'TokenName' maps inside a 'Value'). The key arrives already
+unwrapped, so each entry costs one 'equalsByteString' on the raw key bytes
+instead of an 'equalsData' on the whole key 'BuiltinData'. Same
+continuation-passing shape, so no 'Maybe' materialises.
+-}
+lookupBytesE ::
+  BuiltinByteString -> r -> (Encoded v -> r) -> Encoded (Map k v) -> r
+lookupBytesE k missing found (Encoded d) = go (BI.unsafeDataAsMap d)
+  where
+    go xs = matchList' xs missing \h t ->
+      if equalsByteString k (BI.unsafeDataAsB (BI.fst h))
+        then found (Encoded (BI.snd h))
+        else go t
+{-# INLINEABLE lookupBytesE #-}
