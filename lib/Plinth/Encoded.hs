@@ -28,10 +28,18 @@ module Plinth.Encoded (
 
   -- * Lookup in encoded maps
   lookupE,
+  lookupBytesE,
 ) where
 
 import PlutusTx.AsData.Internal (wrapUnsafeDataAsConstr)
-import PlutusTx.Builtins (BuiltinString, equalsData, matchList, matchList')
+import PlutusTx.Builtins (
+  BuiltinByteString,
+  BuiltinString,
+  equalsByteString,
+  equalsData,
+  matchList,
+  matchList',
+ )
 import PlutusTx.Builtins.Internal (BuiltinData, BuiltinInteger)
 import PlutusTx.Builtins.Internal qualified as BI
 import PlutusTx.Data.AssocMap (Map)
@@ -142,3 +150,30 @@ lookupE (Encoded k) missing found (Encoded d) = go (BI.unsafeDataAsMap d)
     go xs = matchList' xs missing \h t ->
       if equalsData k (BI.fst h) then found (Encoded (BI.snd h)) else go t
 {-# INLINEABLE lookupE #-}
+
+{- | Look up a bytestring key in an encoded map, passing the found value to a
+continuation. Each entry's key is compared with 'equalsByteString' on the raw
+bytes: the search key arrives already unwrapped, and every stored key is
+unwrapped with 'BI.unsafeDataAsB', so no key is decoded as structured
+'BuiltinData'. The continuation receives the still-'Encoded' value, so no
+'Maybe' materialises, and @missing@ is returned when the key is absent. Keys
+must be bytestrings, as in the 'CurrencySymbol' \/ 'TokenName' maps of a
+'Value'.
+-}
+lookupBytesE ::
+  -- | search key, already unwrapped to its raw bytes
+  BuiltinByteString ->
+  -- | result when the key is absent
+  r ->
+  -- | continuation applied to the found value, still 'Encoded'
+  (Encoded v -> r) ->
+  -- | the encoded map to search
+  Encoded (Map k v) ->
+  r
+lookupBytesE k missing found (Encoded d) = go (BI.unsafeDataAsMap d)
+  where
+    go xs = matchList' xs missing \h t ->
+      if equalsByteString k (BI.unsafeDataAsB (BI.fst h))
+        then found (Encoded (BI.snd h))
+        else go t
+{-# INLINEABLE lookupBytesE #-}

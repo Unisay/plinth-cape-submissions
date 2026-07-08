@@ -92,8 +92,7 @@ import Plinth.Decoder.Named (
   N8,
   N9,
  )
-import Plinth.Encoded (Encoded (Encoded), decode, lookupE)
-import PlutusTx.Builtins.Internal qualified as BI
+import Plinth.Encoded (Encoded (Encoded), decode, lookupBytesE)
 import PlutusLedgerApi.Data.V3 (
   Address,
   Credential,
@@ -126,6 +125,7 @@ import PlutusLedgerApi.Data.V3 (
   Vote,
   Voter,
  )
+import PlutusTx.Builtins.Internal qualified as BI
 import PlutusTx.Data.AssocMap (Map)
 import PlutusTx.Data.List (List)
 import PlutusTx.Prelude (Bool, Integer, Maybe)
@@ -320,19 +320,20 @@ instance FieldAt FiniteValue (Extended a) N0 a
 
 -- 'Value' -------------------------------------------------------------------------
 
-{- | The quantity of the given asset in a 'Value': two raw map lookups
-('equalsData' on the keys, see 'lookupE'), decoding only the final amount;
-@0@ when the asset is absent. That a 'Value' is transparently its nested
-@Map CurrencySymbol (Map TokenName Integer)@ is wire-layout knowledge, which
-is why this lives with the layout instances.
+{- | The quantity of the given asset in a 'Value': two nested map lookups that
+compare the keys as raw bytestrings ('lookupBytesE': 'equalsByteString' on the
+unwrapped 'CurrencySymbol' \/ 'TokenName'), decoding only the final amount; @0@
+when the asset is absent. That a 'Value' is transparently its nested
+@Map CurrencySymbol (Map TokenName Integer)@ with bytestring keys is
+wire-layout knowledge, which is why this lives with the layout instances.
 -}
 assetAmount ::
   Encoded Value -> Encoded CurrencySymbol -> Encoded TokenName -> Integer
-assetAmount (Encoded v) cs tn =
-  lookupE
-    cs
+assetAmount (Encoded v) (Encoded cs) (Encoded tn) =
+  lookupBytesE
+    (BI.unsafeDataAsB cs)
     0
-    (lookupE tn 0 (decode @Integer))
+    (lookupBytesE (BI.unsafeDataAsB tn) 0 (decode @Integer))
     (Encoded v :: Encoded (Map CurrencySymbol (Map TokenName Integer)))
 {-# INLINE assetAmount #-}
 

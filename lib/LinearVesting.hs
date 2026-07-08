@@ -12,35 +12,31 @@
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 
-{- Hand-swept inline-unconditional-growth, re-swept against the CAPE
-   schema-2.0.0 objective (happy-path-only total_fee_lovelace) after the
-   single-region datum decode in 'validatePartialUnlock':
+{- Hand-swept inline-unconditional-growth, re-swept for happy-path
+   total_fee_lovelace after moving 'assetAmount' to the bytestring-keyed
+   'lookupBytesE' (equalsByteString on the unwrapped Value keys instead of
+   equalsData on the whole key):
      budget    fee
-     default   63086
-     24        59176
-     25-40     59048    <- optimum plateau (kept 32; -4038, -6.4% vs default)
-     48        65607
-     60        80891    (size blow-up: letrec peeling)
+     1 (dflt)  62366
+     16        62494
+     20        60631
+     24-28     58343   <- optimum (kept 24; -4023 vs default, and -705 vs the
+     32-36     58471      earlier equalsData lookupE at its own optimum 59048)
+     40-44     58343
    Re-sweep after structural changes.
 
    The PREVIEW build (datatypes=BuiltinCasing + dropList skip emission)
-   inverts the tradeoff — builtin casing needs no inliner-driven matcher
-   repair, so a raised budget only duplicates code (at 32 the artifact
-   is 1684 B vs 894 B). Swept separately (preview evaluator,
-   schema-2.0.0 happy-path fee):
-     budget         fee
-     default(1)-4   50169
-     8-16           50056   <- optimum (chosen 12; -113 vs default)
-     20             52219
-     24             52414
-     32             59496
-     48             60066
-   (table pre-dates the single-region datum decode, which improved the
-   preview build too: 50056 -> 49805 at the kept budget 12) -}
+   inverts the tradeoff: builtin casing needs no inliner-driven matcher
+   repair, so a raised budget only duplicates code. Swept separately (preview
+   evaluator, happy-path fee):
+     budget    fee
+     1-16      48971   <- optimum plateau, default included (kept 12 for
+     20        51119      symmetry with the prod branch; the pragma is inert
+     24        51201      here. -834 vs the earlier equalsData lookupE 49805) -}
 #ifdef PREVIEW
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=12 #-}
 #else
-{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=32 #-}
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=24 #-}
 #endif
 
 {- |
