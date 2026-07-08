@@ -339,7 +339,7 @@ assetAmount (Encoded v) cs tn =
 {- | The ADA (lovelace) quantity of a ledger 'Value', read positionally: an
 on-chain 'Value' is canonical, so ADA (the empty 'CurrencySymbol') is always
 the first outer entry and its empty 'TokenName' the first inner entry. Takes the
-first-of-first amount directly — no key 'equalsData' the way 'assetAmount' does.
+first-of-first amount directly, with no key 'equalsData' the way 'assetAmount' does.
 Valid only where ADA is always present and first (every ledger 'TxOut'); do NOT
 use on a mint 'Value', which may omit ADA.
 -}

@@ -96,7 +96,7 @@ findE msg p (Encoded d) = go (BI.unsafeDataAsList d)
 
 {- | The unique element satisfying the predicate, in a single pass: aborts with
 @none@ when no element matches, or with @many@ on encountering a second match.
-Fuses a @'countE'@-then-@'findE'@ (two walks) into one — scan to the first hit,
+Fuses a @'countE'@-then-@'findE'@ (two walks) into one: scan to the first hit,
 then continue over the tail only to rule out a second. No 'Maybe' materialises.
 -}
 findUniqueE ::

@@ -188,8 +188,7 @@ validateDeposit txInfo = V.do
   let escrowAddress = encoded Fixed.scriptAddr
   let outputs = atField @TxInfoOutputs txInfo
   let isScriptOutput o = atField @TxOutAddress o == escrowAddress
-  -- Exactly one script output, located in a single pass ('findUniqueE'). The
-  -- count-then-find pair this replaces walked the outputs twice.
+  -- Exactly one script output, in a single pass.
   let onlyOut =
         findUniqueE
           "No script outputs created"
@@ -219,21 +218,16 @@ validateAccept txInfo scriptInfo = V.do
   (state, _) <- escrowDatum datumJust
   validate "Accept only valid from Deposited state" do
     tagOf state == 0 -- Deposited
-  -- inputs (N0), outputs (N2) and signatories (N8) share one spine walk of the
-  -- large 'TxInfo' Constr, rather than one re-walk from the top per field.
   (inputs, outputs, signatories) <-
     walk txInfo (fields @(TxInfoInputs, TxInfoOutputs, TxInfoSignatories))
   validate "Seller signature missing" do
     anyE (== encoded Fixed.sellerKeyHash) signatories
   validate "No valid escrow deposit found in inputs" do
     anyE isEscrowInput inputs
-  -- One pass over the outputs does the work of two: sum the lovelace paid to the
-  -- seller and, in the same fold, reject the transaction if any output returns
-  -- funds to this validator's own credential (an incomplete withdrawal). The own
-  -- input sits at the compile-time script credential, so the withdrawal guard is
-  -- a comparison against that constant — the same one 'isEscrowInput' uses.
-  -- Comparing the payment credential only: an output to the same credential with
-  -- a staking part attached still locks funds under this validator.
+  -- One fold: sum the lovelace to the seller and reject any output back to the
+  -- script's own credential (the own input sits there, so the guard is the
+  -- compile-time constant). Payment credential only: a staking part on the same
+  -- credential still locks funds here.
   let sellerCred = encoded (PubKeyCredential Fixed.sellerKeyHash)
   let paidToSeller =
         foldE
@@ -320,7 +314,7 @@ isEscrowInput i =
         && lovelaceOf out
         == escrowPrice
 
--- | The lovelace in an output's 'Value', read positionally ('adaOf') — no
+-- | The lovelace in an output's 'Value', read positionally ('adaOf'): no
 -- asset-key comparison, since a ledger output's ADA entry is always first.
 lovelaceOf :: Encoded TxOut -> Integer
 lovelaceOf o = adaOf (atField @TxOutValue o)
