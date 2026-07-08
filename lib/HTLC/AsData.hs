@@ -60,8 +60,6 @@ module HTLC.AsData (
 ) where
 
 import HTLC.Fixture (
-  HTLCDatum,
-  HTLCRedeemer,
   payer,
   recipient,
   secretHash,
