@@ -12,17 +12,22 @@
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 
-{- Hand-swept inline-unconditional-growth, re-swept against the CAPE
-   schema-2.0.0 objective (happy-path-only total_fee_lovelace):
-     budget    fee
-     default   110590
-     20        110575
-     24-26     104726
-     27        102772
-     28-29     101588   <- optimum (kept 28; -9002, -8.1% vs default)
-     30-32     104461   (script size jumps to 1885 B, outweighing cpu savings)
-   Optimum unchanged from the summed-aggregation sweep (still 28); the
-   artifact is byte-identical. Re-sweep after structural changes.
+{- Hand-swept inline-unconditional-growth, re-swept on the current tree
+   (accept compares the compile-time script credential instead of locating
+   the own input; accept fuses the withdrawal scan into the seller-payment
+   fold; deposit finds its unique script output in one pass via 'findUniqueE';
+   accept shares one TxInfo spine walk for inputs/outputs/signatories; lovelace
+   is read positionally via 'adaOf' instead of an 'assetAmount' key lookup)
+   against the CAPE schema-2.0.0 objective (happy-path-only total_fee_lovelace):
+     budget    fee     size
+     16-20     79994   1542
+     24        76687   1552
+     27        73594   1516   <- optimum (size dips to 1516 while cpu stays low;
+                               -28% vs the pre-refactor 101588, beats Scalus 90788)
+     30        76564   1774   (cpu_sum keeps falling but size jumps to 1774 B;
+                               the ref-script fee outweighs the cpu saving)
+     34        76211   1839
+   Re-sweep after structural changes. (Preview not re-swept below.)
 
    The PREVIEW build (datatypes=BuiltinCasing + dropList skip emission)
    inverts the tradeoff — builtin casing needs no inliner-driven matcher
@@ -39,7 +44,7 @@
 #ifdef PREVIEW
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=12 #-}
 #else
-{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=28 #-}
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=27 #-}
 #endif
 
 {- |
@@ -49,9 +54,10 @@ The two-party-escrow validator on the 'Validator' monad and
 The escrow parties, price and script address are compile-time fixture
 constants, so every comparison against them is one 'equalsData' on raw
 bytes: the datum's state is checked by constructor tag alone, payments are
-summed by folding the outputs' raw lovelace entries ('foldE' +
-'assetAmount') instead of decoding and unioning whole 'Value's the way
-@valuePaidTo@ does, and an escrow input is recognised by its payment
+summed by folding the outputs' raw lovelace entries ('foldE' + 'adaOf', a
+positional read of the canonical ada-first 'Value') instead of decoding and
+unioning whole 'Value's the way @valuePaidTo@ does, and an escrow input is
+recognised by its payment
 credential equalling the script's own plus raw amount. The only structural
 decodes left are the deposit-time integer and the interval bounds.
 -}
@@ -85,8 +91,6 @@ import Plinth.Decoder.Named.ScriptContext (
   ScriptContextScriptInfo,
   ScriptContextTxInfo,
   SpendingScriptDatum,
-  SpendingScriptOutRef,
-  TxInInfoOutRef,
   TxInInfoResolved,
   TxInfoInputs,
   TxInfoOutputs,
@@ -95,14 +99,14 @@ import Plinth.Decoder.Named.ScriptContext (
   TxOutAddress,
   TxOutDatum,
   TxOutValue,
-  assetAmount,
+  adaOf,
  )
 import Plinth.Encoded (
   Encoded (Encoded),
   anyE,
   decode,
   encoded,
-  findE,
+  findUniqueE,
   foldE,
   tagOf,
  )
@@ -126,8 +130,6 @@ import PlutusLedgerApi.Data.V3 (
   TxInfo,
   TxOut,
   UpperBound,
-  adaSymbol,
-  adaToken,
   pattern PubKeyCredential,
  )
 import PlutusTx qualified
@@ -186,13 +188,13 @@ validateDeposit txInfo = V.do
   let escrowAddress = encoded Fixed.scriptAddr
   let outputs = atField @TxInfoOutputs txInfo
   let isScriptOutput o = atField @TxOutAddress o == escrowAddress
-  let scriptOuts :: Integer =
-        foldE (\n o -> if isScriptOutput o then n + 1 else n) 0 outputs
-  validate "No script outputs created" do
-    scriptOuts > 0
-  validate "Too many script outputs created" do
-    scriptOuts < 2
-  let onlyOut = findE "No script outputs created" isScriptOutput outputs
+  -- Exactly one script output, in a single pass.
+  let onlyOut =
+        findUniqueE
+          "No script outputs created"
+          "Too many script outputs created"
+          isScriptOutput
+          outputs
   validate "Wrong script output amount" do
     lovelaceOf onlyOut == escrowPrice
   let outDatum = atField @TxOutDatum onlyOut
@@ -212,37 +214,33 @@ the seller, and a funded escrow input is actually being spent.
 -}
 validateAccept :: Encoded TxInfo -> Encoded ScriptInfo -> Validator ()
 validateAccept txInfo scriptInfo = V.do
-  (ownRef, datumJust) <-
-    walk scriptInfo (fields @(SpendingScriptOutRef, SpendingScriptDatum))
+  datumJust <- walk scriptInfo (field @SpendingScriptDatum)
   (state, _) <- escrowDatum datumJust
   validate "Accept only valid from Deposited state" do
     tagOf state == 0 -- Deposited
-  signatories <- walk txInfo (field @TxInfoSignatories)
+  (inputs, outputs, signatories) <-
+    walk txInfo (fields @(TxInfoInputs, TxInfoOutputs, TxInfoSignatories))
   validate "Seller signature missing" do
     anyE (== encoded Fixed.sellerKeyHash) signatories
-  let inputs = atField @TxInfoInputs txInfo
-  let ownInput =
-        findE
-          "Own input not found"
-          (\i -> atField @TxInInfoOutRef i == ownRef)
-          inputs
-  let ownCred =
-        atField @AddressCredential
-          (atField @TxOutAddress (atField @TxInInfoResolved ownInput))
-  let outputs = atField @TxInfoOutputs txInfo
-  -- Compare the payment credential only: an output to the same credential with
-  -- a staking part attached still locks funds under this validator and must be
-  -- rejected as an incomplete withdrawal.
-  validate "Incomplete withdrawal - funds remain in script" do
-    not
-      ( anyE
-          (\o -> atField @AddressCredential (atField @TxOutAddress o) == ownCred)
-          outputs
-      )
   validate "No valid escrow deposit found in inputs" do
     anyE isEscrowInput inputs
+  -- One fold: sum the lovelace to the seller and reject any output back to the
+  -- script's own credential (the own input sits there, so the guard is the
+  -- compile-time constant). Payment credential only: a staking part on the same
+  -- credential still locks funds here.
+  let sellerCred = encoded (PubKeyCredential Fixed.sellerKeyHash)
+  let paidToSeller =
+        foldE
+          ( \acc o ->
+              let cred = atField @AddressCredential (atField @TxOutAddress o)
+               in if cred == escrowCredential
+                    then traceError "Incomplete withdrawal - funds remain in script"
+                    else if cred == sellerCred then acc + lovelaceOf o else acc
+          )
+          0
+          outputs
   validate "Incorrect payment to seller" do
-    lovelacePaidTo (PubKeyCredential Fixed.sellerKeyHash) outputs == escrowPrice
+    paidToSeller == escrowPrice
 
 {- | Buyer refunds after the deadline: same shape as accept, but the funds
 must come back to the buyer and only after @depositTime + refundTime@.
@@ -316,10 +314,10 @@ isEscrowInput i =
         && lovelaceOf out
         == escrowPrice
 
--- | The lovelace in an output's 'Value': two raw map lookups, no decode.
+-- | The lovelace in an output's 'Value', read positionally ('adaOf'): no
+-- asset-key comparison, since a ledger output's ADA entry is always first.
 lovelaceOf :: Encoded TxOut -> Integer
-lovelaceOf o =
-  assetAmount (atField @TxOutValue o) (encoded adaSymbol) (encoded adaToken)
+lovelaceOf o = adaOf (atField @TxOutValue o)
 
 {- | Total lovelace paid to a payment credential, summed over the outputs
 with one raw walk — no 'Value' union, unlike @valuePaidTo@. Staking parts

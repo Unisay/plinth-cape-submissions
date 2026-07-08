@@ -70,6 +70,7 @@ module Plinth.Decoder.Named.ScriptContext (
 
   -- * 'Value' helpers
   assetAmount,
+  adaOf,
 ) where
 
 import Plinth.Decoder.Named (
@@ -92,6 +93,7 @@ import Plinth.Decoder.Named (
   N9,
  )
 import Plinth.Encoded (Encoded (Encoded), decode, lookupE)
+import PlutusTx.Builtins.Internal qualified as BI
 import PlutusLedgerApi.Data.V3 (
   Address,
   Credential,
@@ -333,3 +335,17 @@ assetAmount (Encoded v) cs tn =
     (lookupE tn 0 (decode @Integer))
     (Encoded v :: Encoded (Map CurrencySymbol (Map TokenName Integer)))
 {-# INLINE assetAmount #-}
+
+{- | The ADA (lovelace) quantity of a ledger 'Value', read positionally: an
+on-chain 'Value' is canonical, so ADA (the empty 'CurrencySymbol') is always
+the first outer entry and its empty 'TokenName' the first inner entry. Takes the
+first-of-first amount directly, with no key 'equalsData' the way 'assetAmount' does.
+Valid only where ADA is always present and first (every ledger 'TxOut'); do NOT
+use on a mint 'Value', which may omit ADA.
+-}
+adaOf :: Encoded Value -> Integer
+adaOf (Encoded v) =
+  let adaTokens = BI.snd (BI.head (BI.unsafeDataAsMap v))
+      amount = BI.snd (BI.head (BI.unsafeDataAsMap adaTokens))
+   in decode @Integer (Encoded amount)
+{-# INLINE adaOf #-}
