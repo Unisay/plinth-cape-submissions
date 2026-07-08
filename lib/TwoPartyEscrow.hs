@@ -67,9 +67,6 @@ module TwoPartyEscrow (
 ) where
 
 import Plinth.Decoder.Named (
-  FieldAt,
-  N0,
-  N1,
   atField,
   field,
   fields,
@@ -101,6 +98,7 @@ import Plinth.Decoder.Named.ScriptContext (
   TxOutValue,
   adaOf,
  )
+import Plinth.Decoder.Named.TH (deriveLayoutFor)
 import Plinth.Encoded (
   Encoded (Encoded),
   anyE,
@@ -142,16 +140,9 @@ import TwoPartyEscrow.Fixture qualified as Fixed
 --------------------------------------------------------------------------------
 -- Layout ------------------------------------------------------------------------
 
--- The 'FieldAt' layout of 'EscrowDatum' (Constr tag 0); declared here, next
--- to the only consumer.
-
-data EscrowDatumState
-
-data EscrowDatumTime
-
-instance FieldAt EscrowDatumState EscrowDatum N0 EscrowState
-
-instance FieldAt EscrowDatumTime EscrowDatum N1 POSIXTime
+-- The 'FieldAt' layout of 'EscrowDatum', derived from its record fields. See
+-- "Plinth.Decoder.Named.TH".
+$(deriveLayoutFor ''EscrowDatum)
 
 --------------------------------------------------------------------------------
 -- Validator -------------------------------------------------------------------
@@ -203,7 +194,7 @@ validateDeposit txInfo = V.do
   (state, depositTime) <-
     walkRaw @EscrowDatum
       (getDatum (decode (atField @OutputDatumDatum outDatum)))
-      $ fields @(EscrowDatumState, EscrowDatumTime)
+      $ fields @(EscrowDatumEscrowState, EscrowDatumDepositTime)
   validate "Invalid or missing deposit datum" do
     tagOf state == 0 -- Deposited
   validate "Invalid or missing deposit datum" do
@@ -255,7 +246,7 @@ validateRefund txInfo scriptInfo = V.do
     walk txInfo (fields @(TxInfoValidRange, TxInfoSignatories))
   validate "Buyer signature missing" do
     anyE (== encoded Fixed.buyerKeyHash) signatories
-  depositTime <- walk datumEsc (field @EscrowDatumTime)
+  depositTime <- walk datumEsc (field @EscrowDatumDepositTime)
   validate "Refund time not reached" do
     lowerBoundTime validRange
       > getPOSIXTime (decode depositTime)
@@ -285,7 +276,7 @@ escrowDatum datumJust = V.do
   datum <- walk datumJust (field @JustValue)
   let datumBd = getDatum (decode datum)
   walkRaw @EscrowDatum datumBd N.do
-    state <- field @EscrowDatumState
+    state <- field @EscrowDatumEscrowState
     yield (state, Encoded datumBd)
 
 --------------------------------------------------------------------------------
