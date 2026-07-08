@@ -101,6 +101,7 @@ library
     Plinth.Decoder
     Plinth.Decoder.Named
     Plinth.Decoder.Named.ScriptContext
+    Plinth.Decoder.Named.TH
     Plinth.Encoded
     Plinth.Validator
     TwoPartyEscrow
@@ -113,6 +114,7 @@ library
     , plutus-core
     , plutus-tx
     , plutus-tx-plugin
+    , template-haskell
 
   ghc-options:
     -fplugin Plinth.Plugin
