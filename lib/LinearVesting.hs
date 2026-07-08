@@ -12,10 +12,10 @@
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 
-{- Hand-swept inline-unconditional-growth, re-swept against the CAPE
-   schema-2.0.0 objective (happy-path-only total_fee_lovelace) after moving
-   'assetAmount' to the bytestring-keyed 'lookupBytesE' (equalsByteString on
-   the unwrapped Value keys instead of equalsData on the whole key):
+{- Hand-swept inline-unconditional-growth, re-swept for happy-path
+   total_fee_lovelace after moving 'assetAmount' to the bytestring-keyed
+   'lookupBytesE' (equalsByteString on the unwrapped Value keys instead of
+   equalsData on the whole key):
      budget    fee
      1 (dflt)  62366
      16        62494
@@ -28,7 +28,7 @@
    The PREVIEW build (datatypes=BuiltinCasing + dropList skip emission)
    inverts the tradeoff: builtin casing needs no inliner-driven matcher
    repair, so a raised budget only duplicates code. Swept separately (preview
-   evaluator, schema-2.0.0 happy-path fee):
+   evaluator, happy-path fee):
      budget    fee
      1-16      48971   <- optimum plateau, default included (kept 12 for
      20        51119      symmetry with the prod branch; the pragma is inert

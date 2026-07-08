@@ -151,14 +151,25 @@ lookupE (Encoded k) missing found (Encoded d) = go (BI.unsafeDataAsMap d)
       if equalsData k (BI.fst h) then found (Encoded (BI.snd h)) else go t
 {-# INLINEABLE lookupE #-}
 
-{- | Like 'lookupE', but for a map whose keys are bytestrings (e.g. the
-'CurrencySymbol' \/ 'TokenName' maps inside a 'Value'). The key arrives already
-unwrapped, so each entry costs one 'equalsByteString' on the raw key bytes
-instead of an 'equalsData' on the whole key 'BuiltinData'. Same
-continuation-passing shape, so no 'Maybe' materialises.
+{- | Look up a bytestring key in an encoded map, passing the found value to a
+continuation. Each entry's key is compared with 'equalsByteString' on the raw
+bytes: the search key arrives already unwrapped, and every stored key is
+unwrapped with 'BI.unsafeDataAsB', so no key is decoded as structured
+'BuiltinData'. The continuation receives the still-'Encoded' value, so no
+'Maybe' materialises, and @missing@ is returned when the key is absent. Keys
+must be bytestrings, as in the 'CurrencySymbol' \/ 'TokenName' maps of a
+'Value'.
 -}
 lookupBytesE ::
-  BuiltinByteString -> r -> (Encoded v -> r) -> Encoded (Map k v) -> r
+  -- | search key, already unwrapped to its raw bytes
+  BuiltinByteString ->
+  -- | result when the key is absent
+  r ->
+  -- | continuation applied to the found value, still 'Encoded'
+  (Encoded v -> r) ->
+  -- | the encoded map to search
+  Encoded (Map k v) ->
+  r
 lookupBytesE k missing found (Encoded d) = go (BI.unsafeDataAsMap d)
   where
     go xs = matchList' xs missing \h t ->
