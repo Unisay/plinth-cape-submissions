@@ -1,6 +1,3 @@
--- No explicit export list: 'asDataLaidOut' generates the field-layout tag
--- types (see "Plinth.Decoder.Named.TH"), whose names cannot be enumerated in
--- an export list here, so the whole module is exported instead.
 {-# OPTIONS_GHC -Wno-missing-export-lists #-}
 {-# OPTIONS_GHC -fno-full-laziness #-}
 {-# OPTIONS_GHC -fno-ignore-interface-pragmas #-}
@@ -10,6 +7,10 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
+
+-- No explicit export list: 'asDataLaidOut' generates the field-layout tag
+-- types (see "Plinth.Decoder.Named.TH"), whose names cannot be enumerated in
+-- an export list here, so the whole module is exported instead.
 
 -- | Test fixture data for HTLC benchmark
 module HTLC.Fixture where
