@@ -82,13 +82,23 @@ asDataLaidOut q = do
 ordinary datatype, whose type — unlike an @asData@ newtype — survives
 compilation): 'reify' the datatype and emit the tags + 'FieldAt' instances from
 its constructors. Splice it in the module that walks the type; no export-list
-change is needed, since the tags land in that module.
+change is needed, since the tags land in that module. Fails at the splice site
+if @name@ does not resolve to a @data@ or @newtype@ declaration.
 -}
 deriveLayoutFor :: Name -> Q [Dec]
 deriveLayoutFor name =
   reify name >>= \case
-    TyConI dec -> deriveLayout dec
-    _ -> pure []
+    TyConI dec@DataD {} -> deriveLayout dec
+    TyConI dec@NewtypeD {} -> deriveLayout dec
+    info ->
+      fail $
+        "deriveLayoutFor: `"
+          <> show name
+          <> "` does not resolve to a `data`/`newtype` declaration, so no FieldAt "
+          <> "layout can be derived. Pass a record or sum type (e.g. one made "
+          <> "serialisable with makeIsDataIndexed), not a type synonym, class, or "
+          <> "data constructor. reify returned: "
+          <> show info
 
 {- | The layout declarations for one datatype from a quote: records and sums
 are handled (one tag type + 'FieldAt' instance per field), everything else is
