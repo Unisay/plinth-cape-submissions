@@ -42,8 +42,8 @@ import PlutusTx.Builtins.Internal (unitval)
 import PlutusTx.Data.List (List)
 import PlutusTx.Data.List qualified as List
 import PlutusTx.Eq qualified as PlutusTx
-import TwoPartyEscrow.Fixture (EscrowDatum (..), EscrowState (..))
-import TwoPartyEscrow.Fixture qualified as Fixed
+import TwoPartyEscrow.Fixture (State (..), escrowState)
+import TwoPartyEscrow.Fixture qualified as Escrow
 
 {- | Two-Party Escrow Validator with Datum-Based State Management
 
@@ -86,7 +86,7 @@ validateDeposit ctx =
         traceError "No script outputs created"
     | greaterThanInteger outCount 1 ->
         traceError "Too many script outputs created"
-    | missingSignature txInfo Fixed.buyerKeyHash ->
+    | missingSignature txInfo Escrow.buyerKeyHash ->
         traceError "Buyer signature missing"
     | unexpectedAmountInScriptOutput (List.head scriptOuts) ->
         traceError "Wrong script output amount"
@@ -107,11 +107,11 @@ validateAccept ctx =
       if
         | greaterThanInteger outCount 0 ->
             traceError "Incomplete withdrawal - funds remain in script"
-        | missingSignature txInfo Fixed.sellerKeyHash ->
+        | missingSignature txInfo Escrow.sellerKeyHash ->
             traceError "Seller signature missing"
         | missingEscrowInput (txInfoInputs txInfo) ->
             traceError "No valid escrow deposit found in inputs"
-        | escrowValueNotPaidTo txInfo Fixed.sellerKeyHash ->
+        | escrowValueNotPaidTo txInfo Escrow.sellerKeyHash ->
             traceError "Incorrect payment to seller"
         | otherwise -> unitval
     _ ->
@@ -130,13 +130,13 @@ validateRefund ctx =
   case currentState of
     Deposited ->
       if
-        | missingSignature txInfo Fixed.buyerKeyHash ->
+        | missingSignature txInfo Escrow.buyerKeyHash ->
             traceError "Buyer signature missing"
         | lessThanEqualsInteger lowerTime deadlineTime ->
             traceError "Refund time not reached"
         | missingEscrowInput (txInfoInputs txInfo) ->
             traceError "No valid escrow deposit found in inputs"
-        | escrowValueNotPaidTo txInfo Fixed.buyerKeyHash ->
+        | escrowValueNotPaidTo txInfo Escrow.buyerKeyHash ->
             traceError "Incorrect refund to buyer"
         | otherwise -> unitval
     _ ->
@@ -146,7 +146,7 @@ validateRefund ctx =
     currentDatum = spendingScriptDatum (scriptContextScriptInfo ctx)
     txInfo = scriptContextTxInfo ctx
     POSIXTime lowerTime = lowerBoundTime (txInfoValidRange txInfo)
-    POSIXTime deadlineTime = Fixed.depositTime currentDatum + Fixed.refundTime
+    POSIXTime deadlineTime = Escrow.depositTime currentDatum + Escrow.refundTime
 
 --------------------------------------------------------------------------------
 -- Helper Functions ------------------------------------------------------------
@@ -156,7 +156,7 @@ validateRefund ctx =
 getScriptOutputs :: TxInfo -> List TxOut
 getScriptOutputs txInfo = List.filter isScriptOutput (txInfoOutputs txInfo)
   where
-    isScriptOutput txOut = txOutAddress txOut PlutusTx.== Fixed.scriptAddr
+    isScriptOutput txOut = txOutAddress txOut PlutusTx.== Escrow.scriptAddr
 
 {- | Outputs that keep funds under the escrow script's own payment credential,
 ignoring any staking part. Replaces 'getContinuingOutputs', whose full-Address
@@ -169,7 +169,7 @@ continuingScriptOutputs txInfo =
   List.filter atEscrowCredential (txInfoOutputs txInfo)
   where
     atEscrowCredential txOut =
-      addressCredential (txOutAddress txOut) PlutusTx.== Fixed.scriptCredential
+      addressCredential (txOutAddress txOut) PlutusTx.== Escrow.scriptCredential
 
 -- | Checks if script output contains incorrect escrow amount.
 {-# INLINEABLE unexpectedAmountInScriptOutput #-}
@@ -178,7 +178,7 @@ unexpectedAmountInScriptOutput onlyOut =
   not
     ( equalsInteger
         (getLovelace (lovelaceValueOf (txOutValue onlyOut)))
-        (getLovelace Fixed.escrowPrice)
+        (getLovelace Escrow.escrowPrice)
     )
 
 -- | Validates deposit datum has correct state and timestamp for current transaction.
@@ -193,7 +193,7 @@ invalidDepositDatum onlyOut validRange =
             Deposited ->
               not
                 ( equalsInteger
-                    (getPOSIXTime (Fixed.depositTime escrowDatum))
+                    (getPOSIXTime (Escrow.depositTime escrowDatum))
                     (getPOSIXTime currentTime)
                 )
             _ -> True -- Invalid if not Deposited state
@@ -216,10 +216,10 @@ missingEscrowInput =
   List.all \TxInInfo {txInInfoResolved = TxOut {txOutAddress, txOutValue}} ->
     not
       ( addressCredential txOutAddress
-          PlutusTx.== Fixed.scriptCredential
+          PlutusTx.== Escrow.scriptCredential
           && equalsInteger
             (getLovelace (lovelaceValueOf txOutValue))
-            (getLovelace Fixed.escrowPrice)
+            (getLovelace Escrow.escrowPrice)
       )
 
 -- | Checks if escrow amount was not paid to the specified key hash.
@@ -229,7 +229,7 @@ escrowValueNotPaidTo txInfo keyHash =
   not
     ( equalsInteger
         (getLovelace (lovelaceValueOf (valuePaidTo txInfo keyHash)))
-        (getLovelace Fixed.escrowPrice)
+        (getLovelace Escrow.escrowPrice)
     )
 
 {- | Extract the normalised inclusive lower bound from a POSIXTimeRange,
@@ -253,7 +253,7 @@ upperBoundTime _ = traceError "Upper bound of valid range must be finite"
 
 -- | Extracts escrow datum from spending script context.
 {-# INLINEABLE spendingScriptDatum #-}
-spendingScriptDatum :: ScriptInfo -> EscrowDatum
+spendingScriptDatum :: ScriptInfo -> Escrow.Datum
 spendingScriptDatum = \case
   SpendingScript _ (Just datum) -> unsafeFromBuiltinData (getDatum datum)
   _ -> traceError "Expected SpendingScript with datum"

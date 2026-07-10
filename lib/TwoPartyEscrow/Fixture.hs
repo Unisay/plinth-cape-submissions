@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-missing-export-lists #-}
 {-# OPTIONS_GHC -fno-full-laziness #-}
 {-# OPTIONS_GHC -fno-ignore-interface-pragmas #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
@@ -7,36 +8,18 @@
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 
+-- No explicit export list: 'deriveLayoutFor' generates the field-layout tag
+-- types (see "Plinth.Decoder.Named.TH"), whose names cannot be enumerated in
+-- an export list here, so the whole module is exported instead.
+
 -- | Test fixture data for TwoPartyEscrow benchmark
-module TwoPartyEscrow.Fixture (
-  -- * Escrow Parameters
-  escrowPrice,
-  escrowDeadlineSeconds,
-  refundTime,
+module TwoPartyEscrow.Fixture where
 
-  -- * Buyer Fixture Data
-  buyerKeyHash,
-  buyerKeyHashBytes,
-
-  -- * Seller Fixture Data
-  sellerKeyHash,
-  sellerKeyHashBytes,
-
-  -- * Script Address
-  scriptHash,
-  scriptCredential,
-  scriptAddr,
-
-  -- * Datum Types for State Management
-  EscrowState (..),
-  EscrowDatum (..),
-  initialEscrowDatum,
-) where
-
-import PlutusLedgerApi.Data.V3
+import Plinth.Decoder.Named.TH (deriveLayoutFor)
+import PlutusLedgerApi.Data.V3 hiding (Datum)
 import PlutusTx (makeIsDataIndexed)
 import PlutusTx.Builtins.HasOpaque (stringToBuiltinByteStringHex)
-import Prelude
+import Prelude hiding (State)
 
 --------------------------------------------------------------------------------
 -- Escrow Parameters -----------------------------------------------------------
@@ -102,7 +85,7 @@ scriptAddr = Address scriptCredential Nothing
 -- Datum Types for State Management --------------------------------------------
 
 -- | Escrow state transitions for proper state machine validation
-data EscrowState
+data State
   = -- | Initial state after buyer deposits funds
     Deposited
   | -- | Seller has accepted payment (final state)
@@ -111,20 +94,24 @@ data EscrowState
     Refunded
 
 -- | Complete escrow datum containing state and timing information
-data EscrowDatum = EscrowDatum
-  { escrowState :: EscrowState
+data Datum = Datum
+  { escrowState :: State
   -- ^ Current state of the escrow
   , depositTime :: POSIXTime
   -- ^ When the deposit was made (for deadline calculations)
   }
 
 -- | Initial datum state when escrow is first created
-initialEscrowDatum :: POSIXTime -> EscrowDatum
+initialEscrowDatum :: POSIXTime -> Datum
 initialEscrowDatum depositTime =
-  EscrowDatum {escrowState = Deposited, depositTime = depositTime}
+  Datum {escrowState = Deposited, depositTime = depositTime}
 
 -- PlutusTx instances for serialization
 makeIsDataIndexed
-  ''EscrowState
+  ''State
   [('Deposited, 0), ('Accepted, 1), ('Refunded, 2)]
-makeIsDataIndexed ''EscrowDatum [('EscrowDatum, 0)]
+makeIsDataIndexed ''Datum [('Datum, 0)]
+
+-- The 'FieldAt' layout of 'Datum', derived from its record fields. See
+-- "Plinth.Decoder.Named.TH".
+$(deriveLayoutFor ''Datum)

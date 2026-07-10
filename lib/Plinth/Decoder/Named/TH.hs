@@ -22,7 +22,8 @@ Use 'asDataLaidOut' exactly where 'asData' was used:
 It emits everything 'asData' does (the @BuiltinData@ newtype and its pattern
 synonyms) AND, per record field, a @data \<Tag\>@ plus
 @instance FieldAt \<Tag\> \<T\> \<ix\> \<ty\>@. Validator code then names the
-field with @'Plinth.Decoder.Named.field' \@HTLCDatumPayer@ as usual. See
+field with @'Plinth.Decoder.Named.field' \@Payer@ (read qualified through the
+fixture alias). See
 Note [Layout is byte-identical and drift-proof] and
 Note [Sum-type layouts commit to a constructor].
 -}
@@ -61,7 +62,7 @@ dangerous among same-typed fields, where a swap still type-checks).
 {- Note [Sum-type layouts commit to a constructor]
 For a multi-constructor type the fields of EACH constructor are laid out from
 index 0 of THAT constructor's @Constr@ node — the index resets per constructor,
-it is not the constructor tag. A tag such as @HTLCRedeemerClaim0@ therefore
+it is not the constructor tag. A tag such as @Claim0@ therefore
 only makes sense once the runtime constructor is known to be @Claim@: walking
 it over a @Refund@ value heads an empty args list and aborts. This mirrors the
 hand-written ledger tags (@SpendingScriptOutRef@, @FiniteValue@, @JustValue@ in
@@ -118,7 +119,7 @@ layoutForCons ty cons = concat <$> traverse perCon cons
       concat
         <$> traverse
           ( \(ix, (mSel, fieldTy)) ->
-              fieldDecls ty (tagName ty single (conName con) mSel ix) ix fieldTy
+              fieldDecls ty (tagName single (conName con) mSel ix) ix fieldTy
           )
           (zip [0 ..] (conFields con))
 
@@ -134,16 +135,18 @@ fieldDecls ty tag ix fieldTy =
         []
     ]
 
-{- | The tag type name: @\<Type\>\<Field\>@ for a single-constructor type,
-@\<Type\>\<Constructor\>\<Field\>@ for a sum; a positional (non-record) field
-contributes its index in place of a selector name.
+{- | The tag type name: @\<Field\>@ for a single-constructor type,
+@\<Constructor\>\<Field\>@ for a sum; a positional (non-record) field
+contributes its index in place of a selector name. There is no type prefix —
+tags are meant to be read qualified through the fixture's module alias, e.g.
+@'Plinth.Decoder.Named.field' \@Vesting.PeriodStart@.
 -}
-tagName :: Name -> Bool -> Name -> Maybe Name -> Int -> Name
-tagName ty single ctor mSel ix = mkName (prefix <> fieldPart)
+tagName :: Bool -> Name -> Maybe Name -> Int -> Name
+tagName single ctor mSel ix = mkName (prefix <> fieldPart)
   where
     prefix
-      | single = nameBase ty
-      | otherwise = nameBase ty <> nameBase ctor
+      | single = ""
+      | otherwise = nameBase ctor
     fieldPart = maybe (show ix) (upperFirst . nameBase) mSel
 
 conName :: Con -> Name

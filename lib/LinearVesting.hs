@@ -55,7 +55,7 @@ module LinearVesting (
   linearVestingValidator,
 ) where
 
-import LinearVesting.Fixture (VestingDatum)
+import LinearVesting.Fixture qualified as Vesting
 import Plinth.Decoder.Named (
   atField,
   field,
@@ -91,7 +91,6 @@ import Plinth.Decoder.Named.ScriptContext (
   TxOutValue,
   assetAmount,
  )
-import Plinth.Decoder.Named.TH (deriveLayoutFor)
 import Plinth.Encoded (
   Encoded,
   anyE,
@@ -123,14 +122,6 @@ import PlutusTx qualified
 import PlutusTx.Code (CompiledCode)
 import PlutusTx.Data.List (List)
 import PlutusTx.Prelude
-
---------------------------------------------------------------------------------
--- Layout ------------------------------------------------------------------------
-
--- The 'FieldAt' layout of 'VestingDatum', derived from its record fields (one
--- tag + instance per field, index from source order). See
--- "Plinth.Decoder.Named.TH".
-$(deriveLayoutFor ''VestingDatum)
 
 --------------------------------------------------------------------------------
 -- Validator -------------------------------------------------------------------
@@ -173,14 +164,14 @@ validatePartialUnlock txInfo scriptInfo = V.do
     , firstUnlockAfter
     , installments
     ) <-
-    walkRaw @VestingDatum datumBd N.do
-      b <- field @VestingDatumBeneficiary
-      a <- field @VestingDatumVestingAsset
-      q <- field @VestingDatumTotalVestingQty
-      s <- field @VestingDatumVestingPeriodStart
-      e <- field @VestingDatumVestingPeriodEnd
-      u <- field @VestingDatumFirstUnlockPossibleAfter
-      n <- field @VestingDatumTotalInstallments
+    walkRaw @Vesting.Datum datumBd N.do
+      b <- field @Vesting.Beneficiary
+      a <- field @Vesting.Asset
+      q <- field @Vesting.TotalQty
+      s <- field @Vesting.PeriodStart
+      e <- field @Vesting.PeriodEnd
+      u <- field @Vesting.FirstUnlockAfter
+      n <- field @Vesting.Installments
       yield (b, a, q, s, e, u, n)
   (validRange, signatories) <-
     walk txInfo (fields @(TxInfoValidRange, TxInfoSignatories))
@@ -229,8 +220,8 @@ validateFullUnlock txInfo scriptInfo = V.do
   datumJust <- walk scriptInfo (field @SpendingScriptDatum)
   datum <- walk datumJust (field @JustValue)
   (beneficiary, periodEnd) <-
-    walkRaw @VestingDatum (getDatum (decode datum))
-      $ fields @(VestingDatumBeneficiary, VestingDatumVestingPeriodEnd)
+    walkRaw @Vesting.Datum (getDatum (decode datum))
+      $ fields @(Vesting.Beneficiary, Vesting.PeriodEnd)
   (validRange, signatories) <-
     walk txInfo (fields @(TxInfoValidRange, TxInfoSignatories))
   validate "Missing beneficiary signature" do

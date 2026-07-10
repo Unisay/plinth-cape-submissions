@@ -58,7 +58,7 @@ module HTLC (
   htlcValidator,
 ) where
 
-import HTLC.Fixture qualified as F
+import HTLC.Fixture qualified as HTLC
 import Plinth.Decoder.Named (
   atField,
   field,
@@ -141,8 +141,8 @@ htlcValidator ctxData = runValidator V.do
          , ScriptContextScriptInfo
          )
   case unsafeFromBuiltinData (getRedeemer (decode redeemer)) of
-    F.Claim preimage -> validateClaim txInfo scriptInfo preimage
-    F.Refund -> validateRefund txInfo scriptInfo
+    HTLC.Claim preimage -> validateClaim txInfo scriptInfo preimage
+    HTLC.Refund -> validateRefund txInfo scriptInfo
 
 validateClaim ::
   Encoded TxInfo -> Encoded ScriptInfo -> BuiltinByteString -> Validator ()
@@ -151,11 +151,11 @@ validateClaim txInfo scriptInfo preimage = V.do
     walk scriptInfo (fields @(SpendingScriptOutRef, SpendingScriptDatum))
   htlcDatum <- walk datumJust N.do
     datum <- field @JustValue
-    yield (encoded (unsafeFromBuiltinData (getDatum (decode datum)) :: F.HTLCDatum))
+    yield (encoded (unsafeFromBuiltinData (getDatum (decode datum)) :: HTLC.Datum))
   (recipientAddr, storedHash, timeoutT) <-
     walk
       htlcDatum
-      (fields @(F.HTLCDatumRecipient, F.HTLCDatumSecretHash, F.HTLCDatumTimeout))
+      (fields @(HTLC.Recipient, HTLC.SecretHash, HTLC.Timeout))
   validate "Preimage does not match stored hash" do
     sha2_256 preimage == decode storedHash
   (validRange, signatories) <-
@@ -173,9 +173,9 @@ validateRefund txInfo scriptInfo = V.do
     walk scriptInfo (fields @(SpendingScriptOutRef, SpendingScriptDatum))
   htlcDatum <- walk datumJust N.do
     datum <- field @JustValue
-    yield (encoded (unsafeFromBuiltinData (getDatum (decode datum)) :: F.HTLCDatum))
+    yield (encoded (unsafeFromBuiltinData (getDatum (decode datum)) :: HTLC.Datum))
   (payerAddr, timeoutT) <-
-    walk htlcDatum (fields @(F.HTLCDatumPayer, F.HTLCDatumTimeout))
+    walk htlcDatum (fields @(HTLC.Payer, HTLC.Timeout))
   (validRange, signatories) <-
     walk txInfo (fields @(TxInfoValidRange, TxInfoSignatories))
   validate "Missing payer signature" do

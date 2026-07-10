@@ -65,9 +65,9 @@ import HTLC.Fixture (
   secretHash,
   timeout,
   pattern Claim,
-  pattern HTLCDatum,
   pattern Refund,
  )
+import HTLC.Fixture qualified as HTLC
 import PlutusLedgerApi.Data.V3
 import PlutusTx qualified
 import PlutusTx.Builtins (
@@ -116,7 +116,7 @@ htlcValidator scriptContextData =
         case unsafeFromBuiltinData redeemerBd of
           Claim preimage ->
             case unsafeFromBuiltinData datumBd of
-              HTLCDatum {recipient, secretHash, timeout} ->
+              HTLC.Datum {recipient, secretHash, timeout} ->
                 validateClaim
                   recipient
                   secretHash
@@ -128,7 +128,7 @@ htlcValidator scriptContextData =
                   ownTxOutRef
           Refund ->
             case unsafeFromBuiltinData datumBd of
-              HTLCDatum {payer, timeout} ->
+              HTLC.Datum {payer, timeout} ->
                 validateRefund
                   payer
                   timeout

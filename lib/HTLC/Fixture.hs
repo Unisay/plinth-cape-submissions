@@ -16,7 +16,7 @@
 module HTLC.Fixture where
 
 import Plinth.Decoder.Named.TH (asDataLaidOut)
-import PlutusLedgerApi.Data.V3
+import PlutusLedgerApi.Data.V3 hiding (Datum)
 import PlutusTx.Builtins.HasOpaque (stringToBuiltinByteStringHex)
 import Prelude
 
@@ -31,7 +31,7 @@ import Prelude
 -- https://plutus.cardano.intersectmbo.org/docs/working-with-scripts/optimizing-scripts-with-asData
 asDataLaidOut
   [d|
-    data HTLCDatum = HTLCDatum
+    data Datum = Datum
       { payer :: Address
       , recipient :: Address
       , secretHash :: BuiltinByteString
