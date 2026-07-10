@@ -107,9 +107,27 @@ skipped. Exposed so a caller can lay out a type whose 'asData' runs elsewhere.
 -}
 deriveLayout :: Dec -> Q [Dec]
 deriveLayout = \case
-  DataD _ ty _ _ cons _ -> layoutForCons ty cons
-  NewtypeD _ ty _ _ con _ -> layoutForCons ty [con]
+  DataD _ ty tvs _ cons _ -> monomorphic ty tvs *> layoutForCons ty cons
+  NewtypeD _ ty tvs _ con _ -> monomorphic ty tvs *> layoutForCons ty [con]
   _ -> pure []
+
+{- | The 'FieldAt' instance head applies the bare type constructor
+(@FieldAt \<Tag\> \<T\> …@), so the layout supports only monomorphic types: a
+type parameter would leave @\<T\>@ under-applied and the head ill-kinded (it is
+not of kind 'Data.Kind.Type'). Fail at the splice site, naming the type, rather
+than emitting an instance that provokes a confusing kind error downstream.
+-}
+monomorphic :: Name -> [TyVarBndr flag] -> Q ()
+monomorphic _ [] = pure ()
+monomorphic ty tvs =
+  fail $
+    "deriveLayout: `"
+      <> show ty
+      <> "` has "
+      <> show (length tvs)
+      <> " type parameter(s); the by-name layout supports only monomorphic types "
+      <> "(a type variable would make the FieldAt instance head ill-kinded). "
+      <> "Apply it to a fully-applied, monomorphic datum/redeemer type."
 
 layoutForCons :: Name -> [Con] -> Q [Dec]
 layoutForCons ty cons = concat <$> traverse perCon cons
@@ -135,19 +153,21 @@ fieldDecls ty tag ix fieldTy =
         []
     ]
 
-{- | The tag type name: @\<Field\>@ for a single-constructor type,
-@\<Constructor\>\<Field\>@ for a sum; a positional (non-record) field
-contributes its index in place of a selector name. There is no type prefix —
-tags are meant to be read qualified through the fixture's module alias, e.g.
+{- | The tag type name: @\<Field\>@ for a single-constructor record field,
+@\<Constructor\>\<Field\>@ for a sum. A positional (non-record) field has no name
+to read, so it takes its index and is ALWAYS constructor-prefixed
+(@\<Constructor\>\<index\>@) — including the single-constructor case — so the tag
+stays a valid, uppercase type name (@Claim0@, @T0@) and is never a bare digit
+like @0@, which is not a legal type constructor. There is no type prefix — tags
+are meant to be read qualified through the fixture's module alias, e.g.
 @'Plinth.Decoder.Named.field' \@Vesting.PeriodStart@.
 -}
 tagName :: Bool -> Name -> Maybe Name -> Int -> Name
-tagName single ctor mSel ix = mkName (prefix <> fieldPart)
-  where
-    prefix
-      | single = ""
-      | otherwise = nameBase ctor
-    fieldPart = maybe (show ix) (upperFirst . nameBase) mSel
+tagName single ctor mSel ix = mkName $ case mSel of
+  Just sel
+    | single -> upperFirst (nameBase sel)
+    | otherwise -> nameBase ctor <> upperFirst (nameBase sel)
+  Nothing -> nameBase ctor <> show ix
 
 conName :: Con -> Name
 conName = \case
