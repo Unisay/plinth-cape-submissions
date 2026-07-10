@@ -1,6 +1,4 @@
--- `PlutusTx.AsData.asData` generates `match…` helper bindings that are part
--- of its public API but unused here under the explicit export list.
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-missing-export-lists #-}
 {-# OPTIONS_GHC -fno-full-laziness #-}
 {-# OPTIONS_GHC -fno-ignore-interface-pragmas #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
@@ -10,38 +8,15 @@
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 
+-- No explicit export list: 'asDataLaidOut' generates the field-layout tag
+-- types (see "Plinth.Decoder.Named.TH"), whose names cannot be enumerated in
+-- an export list here, so the whole module is exported instead.
+
 -- | Test fixture data for HTLC benchmark
-module HTLC.Fixture (
-  -- * Datum and redeemer types
-  HTLCDatum,
-  HTLCRedeemer,
-  payer,
-  recipient,
-  secretHash,
-  timeout,
-  pattern HTLCDatum,
-  pattern Claim,
-  pattern Refund,
+module HTLC.Fixture where
 
-  -- * Participants
-  payerKeyHash,
-  payerKeyHashBytes,
-  recipientKeyHash,
-  recipientKeyHashBytes,
-
-  -- * HTLC Secret
-  correctPreimage,
-  wrongPreimage,
-  secretHashBytes,
-  timeoutPosix,
-
-  -- * Script Address
-  scriptAddr,
-  scriptHash,
-) where
-
-import PlutusLedgerApi.Data.V3
-import PlutusTx.AsData (asData)
+import Plinth.Decoder.Named.TH (asDataLaidOut)
+import PlutusLedgerApi.Data.V3 hiding (Datum)
 import PlutusTx.Builtins.HasOpaque (stringToBuiltinByteStringHex)
 import Prelude
 
@@ -54,9 +29,9 @@ import Prelude
 -- synonyms is materially cheaper than the eager 'unsafeFromBuiltinData' decode
 -- that 'makeIsDataIndexed' would otherwise produce. See
 -- https://plutus.cardano.intersectmbo.org/docs/working-with-scripts/optimizing-scripts-with-asData
-asData
+asDataLaidOut
   [d|
-    data HTLCDatum = HTLCDatum
+    data Datum = Datum
       { payer :: Address
       , recipient :: Address
       , secretHash :: BuiltinByteString

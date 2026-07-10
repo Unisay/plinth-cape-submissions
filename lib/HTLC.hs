@@ -58,17 +58,8 @@ module HTLC (
   htlcValidator,
 ) where
 
-import HTLC.Fixture (
-  HTLCDatum,
-  pattern Claim,
-  pattern Refund,
- )
+import HTLC.Fixture qualified as HTLC
 import Plinth.Decoder.Named (
-  FieldAt,
-  N0,
-  N1,
-  N2,
-  N3,
   atField,
   field,
   fields,
@@ -150,8 +141,8 @@ htlcValidator ctxData = runValidator V.do
          , ScriptContextScriptInfo
          )
   case unsafeFromBuiltinData (getRedeemer (decode redeemer)) of
-    Claim preimage -> validateClaim txInfo scriptInfo preimage
-    Refund -> validateRefund txInfo scriptInfo
+    HTLC.Claim preimage -> validateClaim txInfo scriptInfo preimage
+    HTLC.Refund -> validateRefund txInfo scriptInfo
 
 validateClaim ::
   Encoded TxInfo -> Encoded ScriptInfo -> BuiltinByteString -> Validator ()
@@ -160,9 +151,11 @@ validateClaim txInfo scriptInfo preimage = V.do
     walk scriptInfo (fields @(SpendingScriptOutRef, SpendingScriptDatum))
   htlcDatum <- walk datumJust N.do
     datum <- field @JustValue
-    yield (encoded (unsafeFromBuiltinData (getDatum (decode datum)) :: HTLCDatum))
+    yield (encoded (unsafeFromBuiltinData (getDatum (decode datum)) :: HTLC.Datum))
   (recipientAddr, storedHash, timeoutT) <-
-    walk htlcDatum (fields @(DatumRecipient, DatumSecretHash, DatumTimeout))
+    walk
+      htlcDatum
+      (fields @(HTLC.Recipient, HTLC.SecretHash, HTLC.Timeout))
   validate "Preimage does not match stored hash" do
     sha2_256 preimage == decode storedHash
   (validRange, signatories) <-
@@ -180,9 +173,9 @@ validateRefund txInfo scriptInfo = V.do
     walk scriptInfo (fields @(SpendingScriptOutRef, SpendingScriptDatum))
   htlcDatum <- walk datumJust N.do
     datum <- field @JustValue
-    yield (encoded (unsafeFromBuiltinData (getDatum (decode datum)) :: HTLCDatum))
+    yield (encoded (unsafeFromBuiltinData (getDatum (decode datum)) :: HTLC.Datum))
   (payerAddr, timeoutT) <-
-    walk htlcDatum (fields @(DatumPayer, DatumTimeout))
+    walk htlcDatum (fields @(HTLC.Payer, HTLC.Timeout))
   (validRange, signatories) <-
     walk txInfo (fields @(TxInfoValidRange, TxInfoSignatories))
   validate "Missing payer signature" do
@@ -223,28 +216,6 @@ free — so the decode plan serves the happy path alone. The measured tradeoffs:
     @force (delay …)@) — an abort then re-runs that prefix twice. Aborts are
     no longer scored, but the shared-cursor regions avoid it for free.
 -}
-
---------------------------------------------------------------------------------
--- 'HTLCDatum' layout ----------------------------------------------------------
-
--- The 'FieldAt' layout of 'HTLC.Fixture.HTLCDatum', audited against its
--- 'PlutusTx.AsData.asData' declaration (payer, recipient, secretHash, timeout).
-
-data DatumPayer
-
-data DatumRecipient
-
-data DatumSecretHash
-
-data DatumTimeout
-
-instance FieldAt DatumPayer HTLCDatum N0 Address
-
-instance FieldAt DatumRecipient HTLCDatum N1 Address
-
-instance FieldAt DatumSecretHash HTLCDatum N2 BuiltinByteString
-
-instance FieldAt DatumTimeout HTLCDatum N3 POSIXTime
 
 --------------------------------------------------------------------------------
 -- Guard predicates -----------------------------------------------------------
