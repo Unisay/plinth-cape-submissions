@@ -13,23 +13,15 @@ maintainer:    UPLC-CAPE Project
 category:      Blockchain
 license:       Apache-2.0
 
-flag preview
-  description:
-    Build with @datatypes=BuiltinCasing@ enabled; .uplc lands under a
-    @_preview@ submission directory instead of the production one.
-
-  default:     False
-  manual:      True
-
 common common-deps
   build-depends:
     , base               >=4.16
     , bytestring
     , mtl
-    , plutus-core        ^>=1.65
-    , plutus-ledger-api  ^>=1.65
-    , plutus-tx          ^>=1.65
-    , plutus-tx-plugin   ^>=1.65
+    , plutus-core        ^>=1.67
+    , plutus-ledger-api  ^>=1.67
+    , plutus-tx          ^>=1.67
+    , plutus-tx-plugin   ^>=1.67
     , relude             ^>=1.2.2
     , text
 
@@ -81,9 +73,7 @@ common common-language
 -- inliner tuning (@inline-unconditional-growth@,
 -- @inline-callsite-growth@) is set with @OPTIONS_GHC@ pragmas in the
 -- scenario module itself — but those pragmas only reach the plugin if
--- the @PlutusTx.compile@ splice lives in that same module. Toggling
--- the @preview@ flag selects the BuiltinCasing variant without a
--- parallel source tree.
+-- the @PlutusTx.compile@ splice lives in that same module.
 library
   import:          common-language
   exposed-modules:
@@ -124,18 +114,12 @@ library
     -fplugin-opt Plinth.Plugin:no-preserve-logging
     -fplugin-opt Plinth.Plugin:remove-trace
 
-  if flag(preview)
-    ghc-options: -fplugin-opt Plinth.Plugin:datatypes=BuiltinCasing
-    cpp-options: -DPREVIEW
-
   hs-source-dirs:  lib
 
 -- Plinth submissions generator. Writes one @.uplc@ per scenario into the
 -- sibling UPLC-CAPE checkout (set @CAPE_REPO@ if it is not at
--- @../UPLC-CAPE@). With the @preview@ flag set, the @PREVIEW@ CPP define
--- redirects every write to the @_preview@ submission directory.
+-- @../UPLC-CAPE@). One build, one artefact per scenario:
 --   CAPE_REPO=../UPLC-CAPE cabal run plinth-submissions
---   CAPE_REPO=../UPLC-CAPE cabal --flags=preview run plinth-submissions
 executable plinth-submissions
   import:         common-language
   main-is:        Main.hs
@@ -144,8 +128,5 @@ executable plinth-submissions
     , plutus-core
     , plutus-tx
     , plutus-tx-plugin
-
-  if flag(preview)
-    cpp-options: -DPREVIEW
 
   hs-source-dirs: plinth-submissions-app

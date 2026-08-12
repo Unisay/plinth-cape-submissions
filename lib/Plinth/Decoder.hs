@@ -1,7 +1,3 @@
--- CPP gates 'skips' (a PV11-builtin step) to the PREVIEW build: the name
--- does not exist in production builds, so no production splice can reach
--- the dropList builtin even by accident.
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 --
 {-# OPTIONS_GHC -fno-ignore-interface-pragmas #-}
@@ -25,9 +21,6 @@ module Plinth.Decoder (
   pureDecoder,
   fieldRaw,
   skip,
-#ifdef PREVIEW
-  skips,
-#endif
   guardHere,
   walking,
 ) where
@@ -39,9 +32,6 @@ import PlutusTx.Builtins.Internal qualified as BI
 import PlutusTx.Prelude (
   Bool (False, True),
   BuiltinString,
-#ifdef PREVIEW
-  Integer,
-#endif
   traceError,
  )
 
@@ -116,22 +106,6 @@ fieldRaw = Decoder \s k -> k (BI.head s) s
 {-# INLINE skip #-}
 skip :: Decoder ()
 skip = Decoder \s k -> k () (wrapTail s)
-
-#ifdef PREVIEW
-
-{- | Advance the cursor @n@ fields in ONE @dropList@ call. @dropList@ is a
-batch-6 builtin (PlutusV3 from the van Rossem protocol version), so this
-step exists only in the PREVIEW build — production code cannot even name
-it, and the production build of "Plinth.Decoder.Named" unrolls the gap
-into 'skip' steps instead. Measured against @tailList@ chains (see
-Note [Emitting dropList for wide gaps] in "Plinth.Decoder.Named"): one
-call wins on cpu from a 2-field gap and on total fee from a 3-field gap.
--}
-{-# INLINE skips #-}
-skips :: Integer -> Decoder ()
-skips n = Decoder \s k -> k () (BI.drop n s)
-
-#endif
 
 -- | A boolean guard in the middle of a walk: continue, or abort the script.
 {-# INLINE guardHere #-}

@@ -1,5 +1,3 @@
--- CPP only selects the per-build inliner budget below.
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QualifiedDo #-}
@@ -13,7 +11,6 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
-
 {- Hand-swept Plinth inliner budget: inlining is what collapses the
 'Validator' monad and fuses the decode walks. Swept against the CAPE
 schema-2.0.0 objective (happy-path-only total_fee_lovelace); the old
@@ -24,21 +21,9 @@ and no longer wins. Re-sweep after structural changes.
   fee      32 068   30 814  28 430  28 376  29 875  34 840
                                     ^ optimum (Δ −3 692 vs default)
 
-The PREVIEW build (datatypes=BuiltinCasing + dropList skip emission)
-inverts the tradeoff: builtin casing keeps the matchers cheap without
-inliner-driven repair, so a raised budget only duplicates code — at 32
-the artifact doubles in size (591 -> 1181 B) and the fee follows.
-Swept separately (preview evaluator, same objective):
-
-  budget   default(1)–4  8       12–24    32      48
-  fee      24 463        23 988  23 830   31 850  32 765
-                                 ^ optimum (chosen 12; Δ −633 vs default)
+Measured under plutus 1.65; not yet re-swept for the 1.67 bump.
 -}
-#ifdef PREVIEW
-{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=12 #-}
-#else
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=32 #-}
-#endif
 
 {- |
 The HTLC validator, written in @do@-notation on the early-termination

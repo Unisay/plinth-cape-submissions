@@ -1,5 +1,3 @@
--- CPP only selects the per-build inliner budget below.
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE QualifiedDo #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 --
@@ -11,7 +9,6 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
-
 {- Hand-swept inline-unconditional-growth, re-swept for happy-path
    total_fee_lovelace after moving 'assetAmount' to the bytestring-keyed
    'lookupBytesE' (equalsByteString on the unwrapped Value keys instead of
@@ -25,19 +22,8 @@
      40-44     58343
    Re-sweep after structural changes.
 
-   The PREVIEW build (datatypes=BuiltinCasing + dropList skip emission)
-   inverts the tradeoff: builtin casing needs no inliner-driven matcher
-   repair, so a raised budget only duplicates code. Swept separately (preview
-   evaluator, happy-path fee):
-     budget    fee
-     1-16      48971   <- optimum plateau, default included (kept 12 for
-     20        51119      symmetry with the prod branch; the pragma is inert
-     24        51201      here. -834 vs the earlier equalsData lookupE 49805) -}
-#ifdef PREVIEW
-{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=12 #-}
-#else
+   Measured under plutus 1.65; not yet re-swept for the 1.67 bump. -}
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=24 #-}
-#endif
 
 {- |
 The linear-vesting validator, written in @do@-notation on the

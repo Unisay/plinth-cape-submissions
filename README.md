@@ -7,10 +7,15 @@ artefacts that are committed into a sibling `UPLC-CAPE` checkout under
 
 ## Branches
 
-- **`main`** — Plinth 1.65.0.0. Preview (BuiltinCasing) is a cabal flag,
-  not a parallel source tree. Production writes to
-  `Plinth_1.65.0.0_Unisay/`; preview writes to
-  `Plinth_1.65.0.0_Unisay_preview/`.
+- **`main`** — Plinth 1.67.0.0. One build, one artefact per scenario,
+  written to `Plinth_1.67.0.0_Unisay/`. There is no preview variant:
+  1.67 removed the `BuiltinCasing` value of the plugin's `datatypes`
+  option ([plutus#7859](https://github.com/IntersectMBO/plutus/pull/7859)),
+  so the thing the preview build previewed no longer exists.
+- **`plinth-1.65`** — frozen at the source state that produces
+  byte-identical UPLC for every `Plinth_1.65.0.0_Unisay/*.uplc` and
+  `Plinth_1.65.0.0_Unisay_preview/*.uplc` currently in UPLC-CAPE. Preview
+  is a cabal flag there.
 - **`plinth-1.64`** — frozen at the source state that produces
   byte-identical UPLC for every `Plinth_1.64.0.0_Unisay/*.uplc` currently
   in UPLC-CAPE. Same shape as `main` (preview is a cabal flag).
@@ -36,11 +41,10 @@ export CAPE_REPO="$HOME/src/UPLC-CAPE"
 ```sh
 nix develop
 
-# main (Plinth 1.65.0.0)
-cabal run plinth-submissions                      # production
-cabal run --flags=preview plinth-submissions      # preview
+# main (Plinth 1.67.0.0) — the only invocation
+cabal run plinth-submissions
 
-# plinth-1.64 (same shape as main, frozen at 1.64.0.0)
+# plinth-1.65 / plinth-1.64 (preview is a cabal flag there)
 cabal run plinth-submissions                      # production
 cabal run --flags=preview plinth-submissions      # preview
 

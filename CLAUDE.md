@@ -8,7 +8,7 @@ Plinth (PlutusTx) source for the benchmark scenarios measured by
 [UPLC-CAPE](https://github.com/IntersectMBO/UPLC-CAPE). The `plinth-submissions`
 executable pretty-prints each scenario's `CompiledCode` and writes one `.uplc`
 artefact per scenario **into a sibling UPLC-CAPE checkout** at
-`<CAPE_REPO>/submissions/<scenario>/Plinth_<ver>_Unisay[_preview]/<file>.uplc`.
+`<CAPE_REPO>/submissions/<scenario>/Plinth_<ver>_Unisay/<file>.uplc`.
 There are no tests in this repo — correctness is verified by UPLC-CAPE's
 `cape submission measure` against the committed `.uplc` files.
 
@@ -20,7 +20,7 @@ created on demand.
 ## Build / run
 
 Enter the haskell.nix dev shell first; cabal pins are constrained to plutus
-1.65, which would otherwise lose to whatever is globally installed. The repo
+1.67, which would otherwise lose to whatever is globally installed. The repo
 ships an `.envrc` (`use flake`), so with `direnv` installed and `direnv allow`
 run once, the shell is loaded automatically on `cd` — no explicit
 `nix develop` needed. Otherwise:
@@ -30,31 +30,32 @@ nix develop
 
 # CAPE_REPO must be set (typically via .envrc.local); commands abort otherwise.
 
-# Production submission ( -> Plinth_1.65.0.0_Unisay/ )
+# The submission ( -> Plinth_1.67.0.0_Unisay/ )
 cabal run plinth-submissions
-
-# Preview submission, BuiltinCasing datatypes ( -> Plinth_1.65.0.0_Unisay_preview/ )
-cabal run --flags=preview plinth-submissions
 
 # Formatting (runs fourmolu, cabal-fmt, nixfmt, prettier, shfmt, pretty-uplc)
 treefmt
 ```
 
-The `preview` cabal flag does two things in lockstep: passes
-`-fplugin-opt Plinth.Plugin:datatypes=BuiltinCasing` to the library, and sets
-the `PREVIEW` CPP define in `plinth-submissions-app/Main.hs` so writes are
-redirected to the `*_preview` directory. Don't toggle one without the
-other — they're paired in `plinth-cape-submissions.cabal`.
+There is no preview variant on this branch. 1.67 removed the `BuiltinCasing`
+value of the plugin's `datatypes` option ([plutus#7859][7859]), so the
+`preview` cabal flag, its `PREVIEW` CPP define, and the `dropList` gap
+emission it also gated are all gone. The 1.65 preview submissions stay
+reproducible from the `plinth-1.65` branch.
+
+[7859]: https://github.com/IntersectMBO/plutus/pull/7859
 
 ## Branch model (important)
 
-Four long-lived branches, each producing byte-identical UPLC for a specific
+Five long-lived branches, each producing byte-identical UPLC for a specific
 Plinth release that's referenced from UPLC-CAPE's per-scenario
 `source/README.md`:
 
-- `main` — Plinth **1.65.0.0**. Preview is a cabal flag, not a parallel tree.
-- `plinth-1.64` — frozen at 1.64.0.0; same shape as `main` (preview is a
-  cabal flag). Reproduces every `Plinth_1.64.0.0_Unisay/*.uplc`.
+- `main` — Plinth **1.67.0.0**. No preview variant (see above).
+- `plinth-1.65` — frozen at 1.65.0.0; preview is a cabal flag. Reproduces
+  every `Plinth_1.65.0.0_Unisay/*.uplc` and `*_Unisay_preview/*.uplc`.
+- `plinth-1.64` — frozen at 1.64.0.0; same shape as `plinth-1.65` (preview is
+  a cabal flag). Reproduces every `Plinth_1.64.0.0_Unisay/*.uplc`.
 - `plinth-1.45` — frozen at 1.45.0.0; has a parallel `lib/Preview/` tree.
 - `plinth-1.61` — frozen at 1.61.0.0; uses `cabal.project.preview` +
   `plinth-submissions-preview` executable.

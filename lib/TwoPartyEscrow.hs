@@ -1,5 +1,3 @@
--- CPP only selects the per-build inliner budget below.
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE QualifiedDo #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 --
@@ -11,7 +9,6 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
-
 {- Hand-swept inline-unconditional-growth, re-swept on the current tree
    (accept compares the compile-time script credential instead of locating
    the own input; accept fuses the withdrawal scan into the seller-payment
@@ -27,25 +24,10 @@
      30        76564   1774   (cpu_sum keeps falling but size jumps to 1774 B;
                                the ref-script fee outweighs the cpu saving)
      34        76211   1839
-   Re-sweep after structural changes. (Preview not re-swept below.)
+   Re-sweep after structural changes.
 
-   The PREVIEW build (datatypes=BuiltinCasing + dropList skip emission)
-   inverts the tradeoff — builtin casing needs no inliner-driven matcher
-   repair, so a raised budget only duplicates code (at 28 the artifact
-   is 2390 B vs 1495 B). Swept separately (preview evaluator,
-   schema-2.0.0 happy-path fee):
-     budget         fee
-     default(1)-12  83342   <- optimum (chosen 12; the whole low region ties)
-     16             83429
-     20             86809
-     24             87499
-     28             87811
-     48             89808 -}
-#ifdef PREVIEW
-{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=12 #-}
-#else
+   Measured under plutus 1.65; not yet re-swept for the 1.67 bump. -}
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=27 #-}
-#endif
 
 {- |
 The two-party-escrow validator on the 'Validator' monad and
