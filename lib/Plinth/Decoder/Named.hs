@@ -100,7 +100,7 @@ import Plinth.Decoder (
  )
 import Plinth.Encoded (Encoded (Encoded))
 import Plinth.Validator (Validator)
-import PlutusTx.AsData.Internal (wrapTail, wrapUnsafeDataAsConstr)
+import PlutusTx.AsData.Internal (wrapUnsafeDataAsConstr)
 import PlutusTx.Builtins.Internal (BuiltinData)
 import PlutusTx.Builtins.Internal qualified as BI
 import PlutusTx.IsData.Class (ToData, toBuiltinData)
@@ -459,7 +459,7 @@ instance Drops Z where
   {-# INLINE drops #-}
 
 instance Drops p => Drops (S p) where
-  drops s = drops @p (wrapTail s)
+  drops s = drops @p (BI.tail s)
   {-# INLINE drops #-}
 
 {- | Pure single-field projection: one walk of the node to the tagged field,

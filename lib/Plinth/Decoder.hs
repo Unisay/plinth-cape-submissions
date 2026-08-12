@@ -26,7 +26,7 @@ module Plinth.Decoder (
 ) where
 
 import Plinth.Validator (Validator (Validator))
-import PlutusTx.AsData.Internal (wrapTail, wrapUnsafeDataAsConstr)
+import PlutusTx.AsData.Internal (wrapUnsafeDataAsConstr)
 import PlutusTx.Builtins.Internal (BuiltinData, BuiltinList, BuiltinUnit)
 import PlutusTx.Builtins.Internal qualified as BI
 import PlutusTx.Prelude (
@@ -60,8 +60,11 @@ args as a Haskell list — a full spine fold before the first field is read.
 
 The cursor rests ON the field 'fieldRaw' just read (advancing is always an
 explicit 'skip'), so a region's last read leaves no dead trailing @tailList@
-by construction. 'skip' uses 'wrapTail' (not 'BI.tail') to keep the
-advancing steps recognisable to the Plinth plugin as droppable-when-dead.
+by construction — which is why 'skip' can call 'BI.tail' directly. (Up to
+plutus 1.66 it went through @PlutusTx.AsData.Internal.wrapTail@, an OPAQUE
+alias of 'BI.tail' that marked advancing steps droppable-when-dead for the
+plugin. 1.67 removed it — @asData@ unpacks via list casing now — and the
+decoder never depended on the droppability, only on the alias.)
 -}
 
 -- | A decoder over one @Constr@ spine, parameterised over its continuation.
@@ -105,7 +108,7 @@ fieldRaw = Decoder \s k -> k (BI.head s) s
 -- | Advance the cursor one field.
 {-# INLINE skip #-}
 skip :: Decoder ()
-skip = Decoder \s k -> k () (wrapTail s)
+skip = Decoder \s k -> k () (BI.tail s)
 
 -- | A boolean guard in the middle of a walk: continue, or abort the script.
 {-# INLINE guardHere #-}
