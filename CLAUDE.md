@@ -106,3 +106,15 @@ the public contract of the submission.
 3. In UPLC-CAPE: `cape submission measure --all` to refresh `metrics.json`.
 4. Open a PR against UPLC-CAPE with the new `.uplc`, updated `metrics.json`,
    and the matching `source/README.md` commit pointer back to this repo.
+
+## PR and Issue Text Style
+
+Keep public texts (PR descriptions, issue bodies, review replies) compact — reviewers rewrite wordy descriptions (cf. review of IntersectMBO/plutus#7838).
+
+- Open with the essence in 2–3 plain sentences: what changed, the key assumption or limitation, the consequence. No `## What` / `## Why` scaffolding around content that fits in one paragraph.
+- State every fact exactly once; don't re-derive in a later section what the opening already said.
+- Include measurements only when they justify the change (a perf claim needs numbers); present them as a table, with no narrative repeating what the table shows.
+- No Coverage/testing section by default — the diff shows the tests.
+- Skip background the maintainers already know.
+- One line of provenance: which issue, request, or discussion motivated the change.
+- Deletion test: if removing a sentence loses nothing a reviewer needs, remove it.
