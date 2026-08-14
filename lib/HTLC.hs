@@ -13,17 +13,37 @@
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 {- Hand-swept Plinth inliner budget: inlining is what collapses the
 'Validator' monad and fuses the decode walks. Swept against the CAPE
-schema-2.0.0 objective (happy-path-only total_fee_lovelace); the old
-optimum of 52 was measured under the summed accept+reject aggregation
-and no longer wins. Re-sweep after structural changes.
+objective (happy-path-only total_fee_lovelace) on plutus 1.67, measured
+on CAPE's 1.63 production evaluator:
 
-  budget   default  16      24–30   32–42   44      52
-  fee      32 068   30 814  28 430  28 376  29 875  34 840
-                                    ^ optimum (Δ −3 692 vs default)
+  uncond    total_fee  exec    refscript  script_size
+  ────────  ─────────  ──────  ─────────  ───────────
+  1 (dflt)     26 546  16 736      9 810          654
+  8            26 302  16 612      9 690          646
+  12           26 144  16 529      9 615          641
+  16–20        25 292  15 947      9 345          623
+  24 ◀         24 498  15 393      9 105          607
+  25–26        25 231  15 061     10 170          678
+  27           31 817  14 477     17 340        1 156
+  32           32 517  14 562     17 955        1 197
+  40–48        33 432  14 562     18 870        1 258
 
-Measured under plutus 1.65; not yet re-swept for the 1.67 bump.
+24 is a genuine local minimum, not a point on a slope: 25 and 26 were
+probed explicitly and both cost more, because that is where the artifact
+starts growing again (607 → 678 bytes) while execution barely improves.
+Past 26 the inliner duplicates matcher code and the reference-script fee
+roughly doubles.
+
+This is the only one of the four swept scenarios that still earns a pragma:
+the plugin default costs 26 546, so 24 clears the "keep an option only if
+the default provably regresses" bar by 2 048 lovelace. Ecd, LinearVesting
+and TwoPartyEscrow all dropped theirs.
+
+The old value of 32 was chosen under 1.65, already ranking by fee — it did
+not survive the compiler bump rather than having been picked on the wrong
+axis. Re-sweep after structural changes, and on every plutus bump.
 -}
-{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=32 #-}
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=24 #-}
 
 {- |
 The HTLC validator, written in @do@-notation on the early-termination

@@ -9,21 +9,34 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
-{- Hand-swept inline-unconditional-growth, re-swept for happy-path
-   total_fee_lovelace after moving 'assetAmount' to the bytestring-keyed
-   'lookupBytesE' (equalsByteString on the unwrapped Value keys instead of
-   equalsData on the whole key):
-     budget    fee
-     1 (dflt)  62366
-     16        62494
-     20        60631
-     24-28     58343   <- optimum (kept 24; -4023 vs default, and -705 vs the
-     32-36     58471      earlier equalsData lookupE at its own optimum 59048)
-     40-44     58343
-   Re-sweep after structural changes.
 
-   Measured under plutus 1.65; not yet re-swept for the 1.67 bump. -}
-{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=24 #-}
+{- Per-module Plinth inliner tuning: NONE. The plugin default
+   (inline-unconditional-growth=1) is on the optimal plateau for the CAPE
+   objective, so this module sets no pragma.
+
+   Swept 1-D on uncond against total_fee_lovelace (plutus 1.67, measured on
+   CAPE's 1.63 production evaluator, scripts/sweep-inline.sh):
+
+     uncond      total_fee  exec    refscript  script_size
+     ──────────  ─────────  ──────  ─────────  ───────────
+     1 (dflt) ◀     51 656  37 646     14 010          934
+     8              51 784  37 729     14 055          937
+     12–16          51 656  37 646     14 010          934
+     20             51 933  35 583     16 350        1 090
+     24             52 241  35 666     16 575        1 105
+     27             55 642  35 167     20 475        1 365
+     32             59 285  33 755     25 530        1 702
+     40–48          60 245  33 755     26 490        1 766
+
+   Execution falls monotonically as the budget rises, but never fast enough
+   to pay for the bytes: from 16 to 48 it buys 3 891 lovelace of execution
+   for 12 480 of reference-script fee. The blip at 8 (+128) is reproducible,
+   not noise — the measurement is deterministic — but too small to matter.
+
+   The previous value of 24 was chosen under 1.65, already ranking by fee;
+   it did not survive the compiler bump. Dropping it saves 585 lovelace
+   (52 241 → 51 656, −1.1%). Re-sweep after structural changes, and on every
+   plutus bump. -}
 
 {- |
 The linear-vesting validator, written in @do@-notation on the

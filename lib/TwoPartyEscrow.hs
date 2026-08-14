@@ -9,25 +9,42 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
-{- Hand-swept inline-unconditional-growth, re-swept on the current tree
-   (accept compares the compile-time script credential instead of locating
-   the own input; accept fuses the withdrawal scan into the seller-payment
-   fold; deposit finds its unique script output in one pass via 'findUniqueE';
-   accept shares one TxInfo spine walk for inputs/outputs/signatories; lovelace
-   is read positionally via 'adaOf' instead of an 'assetAmount' key lookup)
-   against the CAPE schema-2.0.0 objective (happy-path-only total_fee_lovelace):
-     budget    fee     size
-     16-20     79994   1542
-     24        76687   1552
-     27        73594   1516   <- optimum (size dips to 1516 while cpu stays low;
-                               -28% vs the pre-refactor 101588, beats Scalus 90788)
-     30        76564   1774   (cpu_sum keeps falling but size jumps to 1774 B;
-                               the ref-script fee outweighs the cpu saving)
-     34        76211   1839
-   Re-sweep after structural changes.
 
-   Measured under plutus 1.65; not yet re-swept for the 1.67 bump. -}
-{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=27 #-}
+{- Per-module Plinth inliner tuning: NONE. The plugin default
+   (inline-unconditional-growth=1) wins for the CAPE objective
+   (happy-path-only total_fee_lovelace), so this module sets no pragma.
+
+   The structure the sweep ran against: accept compares the compile-time
+   script credential instead of locating the own input; accept fuses the
+   withdrawal scan into the seller-payment fold; deposit finds its unique
+   script output in one pass via 'findUniqueE'; accept shares one TxInfo
+   spine walk for inputs/outputs/signatories; lovelace is read positionally
+   via 'adaOf' instead of an 'assetAmount' key lookup.
+
+   Re-swept 1-D on uncond for plutus 1.67, measured on CAPE's 1.63
+   production evaluator:
+
+     uncond        total_fee  exec    refscript  script_size
+     ────────────  ─────────  ──────  ─────────  ───────────
+     1 (dflt)–12 ◀    65 449  45 259     20 190        1 346
+     16               67 017  43 452     23 565        1 571
+     20               68 252  42 137     26 115        1 741
+     24               68 148  41 583     26 565        1 771
+     25–26            67 193  40 793     26 400        1 760
+     27–28            65 474  39 314     26 160        1 744
+     30–48            84 295  38 650     45 645        3 043
+
+   This curve is not monotone, which is what made the old choice look good:
+   27 beats 24 on BOTH axes (less execution AND fewer bytes), so a sweep that
+   stops at the local dip lands there. Measured against the default it still
+   loses, by 25 lovelace — a small margin, but a reproducible one rather than
+   noise, since the same artifact always measures identically. 25, 26, 28 and
+   30 were probed explicitly to confirm nothing in that region beats the
+   default.
+
+   The previous value of 27 was chosen under 1.65, already ranking by fee; it
+   did not survive the compiler bump. Re-sweep after structural changes, and
+   on every plutus bump. -}
 
 {- |
 The two-party-escrow validator on the 'Validator' monad and
