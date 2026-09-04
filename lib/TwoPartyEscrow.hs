@@ -10,9 +10,10 @@
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 
-{- Per-module Plinth inliner tuning: NONE. The plugin default
-   (inline-unconditional-growth=1) wins for the CAPE objective
-   (happy-path-only total_fee_lovelace), so this module sets no pragma.
+{- Per-module Plinth inliner tuning: both axes. uncond is pinned at 16 and
+   callsite at 21 for the CAPE objective (happy-path-only total_fee_lovelace).
+   Neither value survives alone: 16 only wins once callsite is 21, which is
+   why the earlier 1-D sweep concluded the default was optimal.
 
    The structure the sweep ran against: accept compares the compile-time
    script credential instead of locating the own input; accept fuses the
@@ -44,7 +45,51 @@
 
    The previous value of 27 was chosen under 1.65, already ranking by fee; it
    did not survive the compiler bump. Re-sweep after structural changes, and
-   on every plutus bump. -}
+   on every plutus bump.
+
+   The callsite axis, swept second with uncond left at the default:
+
+     callsite      total_fee  exec    refscript  script_size
+     ────────────  ─────────  ──────  ─────────  ───────────
+     1                69 581  49 676     19 905        1 327
+     3                66 853  46 408     20 445        1 363
+     5 (dflt)–8       65 449  45 259     20 190        1 346
+     12               66 391  45 031     21 360        1 424
+     16–18            65 792  44 477     21 315        1 421
+     19–20            66 129  42 504     23 625        1 575
+     21–28 ◀          63 782  40 277     23 505        1 567
+     32               64 196  39 806     24 390        1 626
+     40              121 393  37 978     83 415        5 561
+
+   Then uncond again, with callsite at 21. The two axes interact, which the
+   table above and the one before it cannot show on their own:
+
+     uncond        total_fee  exec    refscript  script_size
+     ────────────  ─────────  ──────  ─────────  ───────────
+     1 (dflt)–12      63 782  40 277     23 505        1 567
+     16 ◀             63 432  39 882     23 550        1 570
+     20               65 309  39 314     25 995        1 733
+     24               65 474  39 314     26 160        1 744
+     32               84 295  38 650     45 645        3 043
+
+   uncond=16 costs 67 017 at the default callsite but 63 432 at 21 — the same
+   budget, 3 585 lovelace apart, decided entirely by the other axis. That is
+   the concrete refutation of "callsite is dominated by uncond once uncond is
+   tuned": here uncond is dominated by callsite. 14, 15, 17 and 18 were probed
+   at callsite 21 to confirm 16 is a local minimum (14 and 15 give 63 782, 17
+   also 63 432, 18 regresses to 65 309), and callsite 22, 23 and 26 all hold at
+   63 432, so the optimum is a plateau and not a spike.
+
+   Together the two pragmas are worth 2 017 lovelace against the default pair
+   (65 449 → 63 432, −3.1%), which clears the "keep an option only if the
+   default provably regresses" bar for both.
+
+   Note [Callsite growth is not dominated by uncond] applies. See
+   "Plinth.Decoder.Named" — all three decoder-DSL validators reach their
+   callsite optimum at the same value, so it is a property of the shared DSL
+   rather than of this validator. -}
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=16 #-}
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-callsite-growth=21 #-}
 
 {- |
 The two-party-escrow validator on the 'Validator' monad and

@@ -10,9 +10,10 @@
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 
-{- Per-module Plinth inliner tuning: NONE. The plugin default
-   (inline-unconditional-growth=1) is on the optimal plateau for the CAPE
-   objective, so this module sets no pragma.
+{- Per-module Plinth inliner tuning: callsite only. The plugin default for
+   inline-unconditional-growth (1) is on the optimal plateau for the CAPE
+   objective, so that option stays unset; inline-callsite-growth is not, and
+   is pinned at 21.
 
    Swept 1-D on uncond against total_fee_lovelace (plutus 1.67, measured on
    CAPE's 1.63 production evaluator, scripts/sweep-inline.sh):
@@ -36,7 +37,32 @@
    The previous value of 24 was chosen under 1.65, already ranking by fee;
    it did not survive the compiler bump. Dropping it saves 585 lovelace
    (52 241 → 51 656, −1.1%). Re-sweep after structural changes, and on every
-   plutus bump. -}
+   plutus bump.
+
+   The callsite axis, swept second with uncond left at the default. This is
+   the axis the 1-D sweep never touched, and it is worth 1 758 lovelace here:
+
+     callsite      total_fee  exec    refscript  script_size
+     ────────────  ─────────  ──────  ─────────  ───────────
+     1                52 373  39 038     13 335          889
+     3–8              51 784  37 729     14 055          937
+     5 (dflt)         51 656  37 646     14 010          934
+     12–18            50 882  37 037     13 845          923
+     19–22 ◀          49 898  36 248     13 650          910
+     23–28            52 459  35 749     16 710        1 114
+     32               56 270  35 375     20 895        1 393
+     40               60 876  34 461     26 415        1 761
+
+   Then uncond again with callsite at 21: the default through 16 all measure
+   49 898, and 20 upward regress, so the default stays. 21 clears the "keep an
+   option only if the default provably regresses" bar by 1 758 lovelace, which
+   is the whole margin — unlike the old uncond=24, this one earns its place.
+
+   Note [Callsite growth is not dominated by uncond] applies: the belief that
+   this axis saturates and can be left alone came from an older compiler and is
+   false at 1.67. See "Plinth.Decoder.Named" — all three decoder-DSL validators
+   reach their optimum at the same callsite value. -}
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-callsite-growth=21 #-}
 
 {- |
 The linear-vesting validator, written in @do@-notation on the

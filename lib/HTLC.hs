@@ -34,16 +34,36 @@ starts growing again (607 → 678 bytes) while execution barely improves.
 Past 26 the inliner duplicates matcher code and the reference-script fee
 roughly doubles.
 
-This is the only one of the four swept scenarios that still earns a pragma:
-the plugin default costs 26 546, so 24 clears the "keep an option only if
-the default provably regresses" bar by 2 048 lovelace. Ecd, LinearVesting
-and TwoPartyEscrow all dropped theirs.
-
 The old value of 32 was chosen under 1.65, already ranking by fee — it did
 not survive the compiler bump rather than having been picked on the wrong
 axis. Re-sweep after structural changes, and on every plutus bump.
+
+The callsite axis, swept second with uncond held at 24:
+
+  callsite    total_fee  exec    refscript  script_size
+  ──────────  ─────────  ──────  ─────────  ───────────
+  5 (dflt)–12   24 498  15 393      9 105          607
+  16            25 292  15 947      9 345          623
+  18            25 170  15 585      9 585          639
+  19–24 ◀       24 376  15 031      9 345          623
+  25–26         28 800  14 865     13 935          929
+  28            29 258  14 978     14 280          952
+  32            33 194  14 729     18 465        1 231
+  40            33 524  14 729     18 795        1 253
+
+Then uncond again with callsite at 21, which moved nothing here: the default
+costs 25 009, 8 costs 24 534, and 12 through 24 all sit at 24 376. 24 is kept
+because it is already the committed value and sits on that plateau.
+
+Note [Callsite growth is not dominated by uncond] applies: the earlier belief
+that this axis saturates and can be left alone was recorded against an older
+compiler, and it is false at 1.67. See "Plinth.Decoder.Named" for the shared
+finding — all three decoder-DSL validators reach their optimum at the same
+callsite value, which is what makes it a property of the DSL rather than of
+any one validator.
 -}
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=24 #-}
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-callsite-growth=21 #-}
 
 {- |
 The HTLC validator, written in @do@-notation on the early-termination

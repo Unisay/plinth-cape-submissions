@@ -287,6 +287,46 @@ instance
   ) =>
   Minus a b gap
 
+{- Note [Callsite growth is not dominated by uncond]
+The Plinth plugin exposes two inliner budgets, @inline-unconditional-growth@
+and @inline-callsite-growth@. This repository swept only the first for a long
+time, on a recorded belief that the second "saturates at a shallow plateau and
+is dominated by uncond once uncond is tuned". That belief was measured against
+an older compiler. It is false at plutus 1.67, and this DSL is exactly where it
+breaks.
+
+Measured on CAPE's 1.63 production evaluator, ranking on total_fee_lovelace,
+for the three validators that walk through this module. Each row is the fee at
+the module's committed uncond with callsite at the plugin default, then at 21:
+
+  scenario            callsite dflt   callsite 21   saved
+  ──────────────────  ─────────────   ───────────   ──────
+  htlc                      24 498        24 376      122
+  linear_vesting            51 656        49 898    1 758
+  two_party_escrow          65 449        63 782    1 667
+
+Two things make this a property of the DSL rather than of any one validator.
+All three reach their optimum at the same callsite value, and their plateaus
+(19–24, 19–22, 21–28) intersect at 21 and 22. And the mechanism fits: a
+by-name walk is built from many small continuation lambdas, one per field step,
+so the budget that governs whether a lambda is inlined AT A CALL SITE is the
+one that decides whether a walk fuses. Uncond governs unconditional inlining
+of a binding regardless of how often it is used, which is the wrong lever for
+code shaped like this.
+
+The axes also interact, so neither can be swept alone and declared done.
+TwoPartyEscrow at uncond=16 costs 67 017 with callsite at the default and
+63 432 with callsite at 21 — the same budget, 3 585 lovelace apart. A 1-D
+sweep on uncond therefore concluded the default was optimal for that module,
+and it was, at the default callsite. Sweep callsite first, then re-sweep uncond
+at the winner, and probe the neighbourhood: every curve here is non-monotone,
+with htlc regressing at 16 and 18 before improving at 19, and linear_vesting
+snapping back 2 561 lovelace between 22 and 23.
+
+The values live in each validator module's own pragma block next to its table,
+because the plugin option is per-compilation-unit and each module hosts its own
+'PlutusTx.compile' splice. -}
+
 {- Note [Cursor gaps compile to tailList chains]
 A cursor gap could compile to @tailList@ steps or to one @dropList n@ call.
 Measured head to head on one field projection with the gap emitted both
