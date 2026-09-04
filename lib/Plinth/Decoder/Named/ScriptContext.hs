@@ -101,7 +101,7 @@ import PlutusLedgerApi.Data.V3 (
   DatumHash,
   Extended,
   GovernanceActionId,
-  Lovelace,
+  Lovelace (getLovelace),
   LowerBound,
   MintValue,
   OutputDatum,
@@ -124,9 +124,11 @@ import PlutusLedgerApi.Data.V3 (
   Value,
   Vote,
   Voter,
+  unsafeLovelaceValueOf,
  )
 import PlutusTx.Builtins.Internal qualified as BI
 import PlutusTx.Data.AssocMap (Map)
+import PlutusTx.IsData.Class (unsafeFromBuiltinData)
 import PlutusTx.Data.List (List)
 import PlutusTx.Prelude (Bool, Integer, Maybe)
 
@@ -340,13 +342,19 @@ assetAmount (Encoded v) (Encoded cs) (Encoded tn) =
 {- | The ADA (lovelace) quantity of a ledger 'Value', read positionally: an
 on-chain 'Value' is canonical, so ADA (the empty 'CurrencySymbol') is always
 the first outer entry and its empty 'TokenName' the first inner entry. Takes the
-first-of-first amount directly, with no key 'equalsData' the way 'assetAmount' does.
+first-of-first amount directly, with no key comparison the way 'assetAmount' does.
 Valid only where ADA is always present and first (every ledger 'TxOut'); do NOT
-use on a mint 'Value', which may omit ADA.
+use on a mint 'Value', which may omit ADA — read that with 'assetAmount'.
+
+Delegates to upstream's 'unsafeLovelaceValueOf' (added by
+IntersectMBO/plutus#7838), which the 1.67 pin exposes. It replaced a
+hand-rolled copy and left every CAPE artefact byte-identical, because both
+compile to the same builtin chain: @unMapData@, @headList@, @sndPair@,
+@unMapData@, @headList@, @sndPair@, @unIData@. The 'Encoded' unwrap is free —
+a Data-backed @Map k a@ wraps a @BuiltinList (BuiltinPair BuiltinData
+BuiltinData)@, so 'unsafeFromBuiltinData' at 'Value' is one @unMapData@ and
+upstream's own @toBuiltinList@ is a coerce.
 -}
 adaOf :: Encoded Value -> Integer
-adaOf (Encoded v) =
-  let adaTokens = BI.snd (BI.head (BI.unsafeDataAsMap v))
-      amount = BI.snd (BI.head (BI.unsafeDataAsMap adaTokens))
-   in decode @Integer (Encoded amount)
+adaOf (Encoded v) = getLovelace (unsafeLovelaceValueOf (unsafeFromBuiltinData v))
 {-# INLINE adaOf #-}
