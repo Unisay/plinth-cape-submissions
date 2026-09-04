@@ -287,89 +287,17 @@ instance
   ) =>
   Minus a b gap
 
-{- Note [The compiler is cost-neutral from 1.65 to 1.67]
-Every fee movement in UPLC-CAPE's Plinth columns between 1.65 and 1.67 is
-budget tuning, not codegen. Measured on CAPE's 1.63 production evaluator with
-ONE source tree, plugin-default inliner budgets, and builtin casing enabled on
-all three lines, so the compiler is the only variable:
-
-  submission          1.65      1.66      1.67
-  ────────────────  ──────    ──────    ──────
-  ecd                7 886     7 886     7 886
-  htlc              26 546    26 546    26 546
-  linear_vesting    51 784    51 784    51 656
-  two_party_escrow  65 449    65 449    65 449
-
-So neither 1.66's RecInline pass nor its FloatDelay soundness fix changed what
-this code costs. What changed is how much hand tuning wins on each line:
-
-  submission        1.65 tuning won   1.67 tuning won   residue
-  ────────────────  ───────────────   ───────────────   ───────
-  ecd                       −5 116                 0         —
-  htlc                       2 716             2 170       546
-  linear_vesting             2 813             1 758       927
-  two_party_escrow           2 727             2 017       710
-
-The residue column is exactly the gap between the published 1.65 artifact and
-the best 1.67 one, to the lovelace. Ecd is the same effect with the sign
-flipped: its published 1.65 artifact carried uncond=45 and cost 13 002 against
-a 1.65 DEFAULT of 7 886, so that pragma was losing 5 116 lovelace. The 39%
-"improvement" at 1.67 is the removal of a bad budget, not a compiler gain.
-
-The residue is NOT attributed. It is either a change in how the inliner
-responds to budget values while leaving the default outcome alone, or a source
-difference — the published 1.65 rows pin commits that predate several
-optimisation PRs. Separating those needs a two-axis sweep of the current source
-at 1.65, which has not been run.
-
-METHOD WARNING, because this analysis produced a confident wrong answer first.
-Comparing versions requires checking what each codegen option MEANS on every
-version, not just the newest. Builtin casing was opt-in at 1.65 via
-@-fplugin-opt Plinth.Plugin:datatypes=BuiltinCasing@; 1.67 removed that option
-and made casing the default. A first run that simply used "the same source with
-the same options" therefore compared a non-casing 1.65 build against a casing
-1.67 build, and reported 1.66 as 17% worse than 1.67 across every row. The
-confound was in the harness, and the numbers looked entirely plausible. -}
-
 {- Note [Callsite growth is not dominated by uncond]
-The Plinth plugin exposes two inliner budgets, @inline-unconditional-growth@
-and @inline-callsite-growth@. This repository swept only the first for a long
-time, on a recorded belief that the second "saturates at a shallow plateau and
-is dominated by uncond once uncond is tuned". That belief was measured against
-an older compiler. It is false at plutus 1.67, and this DSL is exactly where it
-breaks.
+@inline-callsite-growth=21@ is optimal for all three validators that walk
+through this module, and their plateaus intersect there, so treat it as a
+property of the DSL and not of any one validator. The mechanism: a by-name walk
+is many small continuation lambdas, one per field step, so the budget governing
+inlining AT A CALL SITE is what decides whether a walk fuses.
 
-Measured on CAPE's 1.63 production evaluator, ranking on total_fee_lovelace,
-for the three validators that walk through this module. Each row is the fee at
-the module's committed uncond with callsite at the plugin default, then at 21:
-
-  scenario            callsite dflt   callsite 21   saved
-  ──────────────────  ─────────────   ───────────   ──────
-  htlc                      24 498        24 376      122
-  linear_vesting            51 656        49 898    1 758
-  two_party_escrow          65 449        63 782    1 667
-
-Two things make this a property of the DSL rather than of any one validator.
-All three reach their optimum at the same callsite value, and their plateaus
-(19–24, 19–22, 21–28) intersect at 21 and 22. And the mechanism fits: a
-by-name walk is built from many small continuation lambdas, one per field step,
-so the budget that governs whether a lambda is inlined AT A CALL SITE is the
-one that decides whether a walk fuses. Uncond governs unconditional inlining
-of a binding regardless of how often it is used, which is the wrong lever for
-code shaped like this.
-
-The axes also interact, so neither can be swept alone and declared done.
-TwoPartyEscrow at uncond=16 costs 67 017 with callsite at the default and
-63 432 with callsite at 21 — the same budget, 3 585 lovelace apart. A 1-D
-sweep on uncond therefore concluded the default was optimal for that module,
-and it was, at the default callsite. Sweep callsite first, then re-sweep uncond
-at the winner, and probe the neighbourhood: every curve here is non-monotone,
-with htlc regressing at 16 and 18 before improving at 19, and linear_vesting
-snapping back 2 561 lovelace between 22 and 23.
-
-The values live in each validator module's own pragma block next to its table,
-because the plugin option is per-compilation-unit and each module hosts its own
-'PlutusTx.compile' splice. -}
+The axes interact and every curve is non-monotone, so sweep callsite first, then
+uncond at the winner, then probe neighbours. Re-sweep on every plutus bump: this
+axis was skipped for a long time on a belief recorded against an older compiler.
+Tables and method in PR #40. -}
 
 {- Note [Cursor gaps compile to tailList chains]
 A cursor gap could compile to @tailList@ steps or to one @dropList n@ call.

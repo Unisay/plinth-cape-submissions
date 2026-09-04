@@ -33,9 +33,15 @@ nix develop
 # The submission ( -> Plinth_1.67.0.0_Unisay/ )
 cabal run plinth-submissions
 
-# Formatting (runs fourmolu, cabal-fmt, nixfmt, prettier, shfmt, pretty-uplc)
-treefmt
+# Formatting: only fourmolu is in the dev shell.
+fourmolu -i $(git ls-files '*.hs')
 ```
+
+`treefmt` is the documented entry point in `treefmt.toml` but does not work
+here: `treefmt` and `cabal-fmt` are not in `buildInputs`, and the
+`pretty-uplc` formatter names a command whose executable was removed from the
+cabal file. Adding `treefmt` alone would give a tool that fails on three of its
+six formatters.
 
 There is no preview variant on this branch. 1.67 removed the `BuiltinCasing`
 value of the plugin's `datatypes` option ([plutus#7859][7859]), so the

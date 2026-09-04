@@ -39,29 +39,9 @@
    (52 241 → 51 656, −1.1%). Re-sweep after structural changes, and on every
    plutus bump.
 
-   The callsite axis, swept second with uncond left at the default. This is
-   the axis the 1-D sweep never touched, and it is worth 1 758 lovelace here:
-
-     callsite      total_fee  exec    refscript  script_size
-     ────────────  ─────────  ──────  ─────────  ───────────
-     1                52 373  39 038     13 335          889
-     3–8              51 784  37 729     14 055          937
-     5 (dflt)         51 656  37 646     14 010          934
-     12–18            50 882  37 037     13 845          923
-     19–22 ◀          49 898  36 248     13 650          910
-     23–28            52 459  35 749     16 710        1 114
-     32               56 270  35 375     20 895        1 393
-     40               60 876  34 461     26 415        1 761
-
-   Then uncond again with callsite at 21: the default through 16 all measure
-   49 898, and 20 upward regress, so the default stays. 21 clears the "keep an
-   option only if the default provably regresses" bar by 1 758 lovelace, which
-   is the whole margin — unlike the old uncond=24, this one earns its place.
-
-   Note [Callsite growth is not dominated by uncond] applies: the belief that
-   this axis saturates and can be left alone came from an older compiler and is
-   false at 1.67. See "Plinth.Decoder.Named" — all three decoder-DSL validators
-   reach their optimum at the same callsite value. -}
+   Callsite is pinned at 21 for 49 898, against 51 656 at the default: 1 758
+   lovelace, the whole margin here. See
+   Note [Callsite growth is not dominated by uncond]. -}
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-callsite-growth=21 #-}
 
 {- |
