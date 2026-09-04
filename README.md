@@ -23,6 +23,14 @@ artefacts that are committed into a sibling `UPLC-CAPE` checkout under
 Each scenario's `source/README.md` in UPLC-CAPE pins a specific commit on
 one of these branches.
 
+UPLC-CAPE has since retired the preview track: every `*_Unisay_preview`
+directory was deleted and those artefacts moved under the plain directory
+name. Nothing on this branch changed, so a `_preview` path above is where the
+build *writes* locally, not where the artefact *lives* in UPLC-CAPE, and which
+of the two builds feeds a given submission is a per-row fact rather than a rule.
+Read that row's own `source/README.md`, which names the command and the output
+path its pinned commit produces.
+
 ## Build
 
 A UPLC-CAPE checkout is required because `.uplc` outputs are written into
