@@ -52,10 +52,10 @@ Plinth release that's referenced from UPLC-CAPE's per-scenario
 `source/README.md`:
 
 - `main` — Plinth **1.67.0.0**. No preview variant (see above).
-- `plinth-1.65` — frozen at 1.65.0.0; preview is a cabal flag. Reproduces
-  every `Plinth_1.65.0.0_Unisay/*.uplc` and `*_Unisay_preview/*.uplc`.
-- `plinth-1.64` — frozen at 1.64.0.0; same shape as `plinth-1.65` (preview is
-  a cabal flag). Reproduces every `Plinth_1.64.0.0_Unisay/*.uplc`.
+- `plinth-1.65` — frozen at 1.65.0.0; preview is a cabal flag, writing to
+  `*_Unisay_preview/`.
+- `plinth-1.64` — frozen at 1.64.0.0; same shape, but the preview build writes
+  to `*_Unisay_builtincasing/`.
 - `plinth-1.45` — frozen at 1.45.0.0; has a parallel `lib/Preview/` tree.
 - `plinth-1.61` — frozen at 1.61.0.0; uses `cabal.project.preview` +
   `plinth-submissions-preview` executable.
@@ -63,6 +63,15 @@ Plinth release that's referenced from UPLC-CAPE's per-scenario
 Build invocations differ per branch — consult the branch's README before
 running. **Do not "modernize" the older branches**: their job is to keep
 reproducing the exact UPLC that UPLC-CAPE pins by commit hash.
+
+**Do not infer a submission's directory from the build that produced it.**
+UPLC-CAPE retired the preview track and deleted every `*_Unisay_preview` and
+`*_Unisay_builtincasing` directory, moving those artefacts under the plain
+directory name. Nothing on these branches changed, so the local output path and
+the UPLC-CAPE path now disagree for most casing rows, and which of the two
+builds feeds a given row is a per-row fact. Read that row's own
+`source/README.md`, which names the command and the output path its pinned
+commit produces.
 
 ## Code layout
 

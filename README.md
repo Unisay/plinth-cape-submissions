@@ -12,13 +12,11 @@ artefacts that are committed into a sibling `UPLC-CAPE` checkout under
   1.67 removed the `BuiltinCasing` value of the plugin's `datatypes`
   option ([plutus#7859](https://github.com/IntersectMBO/plutus/pull/7859)),
   so the thing the preview build previewed no longer exists.
-- **`plinth-1.65`** — frozen at the source state that produces
-  byte-identical UPLC for every `Plinth_1.65.0.0_Unisay/*.uplc` and
-  `Plinth_1.65.0.0_Unisay_preview/*.uplc` currently in UPLC-CAPE. Preview
-  is a cabal flag there.
-- **`plinth-1.64`** — frozen at the source state that produces
-  byte-identical UPLC for every `Plinth_1.64.0.0_Unisay/*.uplc` currently
-  in UPLC-CAPE. Same shape as `main` (preview is a cabal flag).
+- **`plinth-1.65`** — frozen at Plinth 1.65.0.0. Preview (BuiltinCasing)
+  is a cabal flag; the plain build writes to `Plinth_1.65.0.0_Unisay/` and
+  the preview build to `Plinth_1.65.0.0_Unisay_preview/`.
+- **`plinth-1.64`** — frozen at Plinth 1.64.0.0, same shape, except the
+  preview build writes to `Plinth_1.64.0.0_Unisay_builtincasing/`.
 - **`plinth-1.45`** — frozen at Plinth 1.45.0.0 with the original
   parallel `lib/Preview/` tree. Produces byte-identical UPLC for every
   `Plinth_1.45.0.0_Unisay/*.uplc` currently in UPLC-CAPE.
@@ -26,7 +24,13 @@ artefacts that are committed into a sibling `UPLC-CAPE` checkout under
   produces byte-identical UPLC for every `Plinth_1.61.0.0_Unisay/*.uplc`.
 
 Each scenario's `source/README.md` in UPLC-CAPE pins a specific commit on
-one of these branches.
+one of these branches, and names the build command and the output path that
+commit actually produces. Treat it as the authority, not this list: UPLC-CAPE
+retired the preview track and deleted every `*_Unisay_preview` and
+`*_Unisay_builtincasing` directory, moving those artefacts under the plain
+directory name. So a `_preview` path here is where the build *writes* locally,
+not where the artefact *lives* in UPLC-CAPE, and which of the two builds feeds a
+given submission is now a per-row fact.
 
 ## Build
 
