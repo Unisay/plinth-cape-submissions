@@ -287,6 +287,50 @@ instance
   ) =>
   Minus a b gap
 
+{- Note [The compiler is cost-neutral from 1.65 to 1.67]
+Every fee movement in UPLC-CAPE's Plinth columns between 1.65 and 1.67 is
+budget tuning, not codegen. Measured on CAPE's 1.63 production evaluator with
+ONE source tree, plugin-default inliner budgets, and builtin casing enabled on
+all three lines, so the compiler is the only variable:
+
+  submission          1.65      1.66      1.67
+  ────────────────  ──────    ──────    ──────
+  ecd                7 886     7 886     7 886
+  htlc              26 546    26 546    26 546
+  linear_vesting    51 784    51 784    51 656
+  two_party_escrow  65 449    65 449    65 449
+
+So neither 1.66's RecInline pass nor its FloatDelay soundness fix changed what
+this code costs. What changed is how much hand tuning wins on each line:
+
+  submission        1.65 tuning won   1.67 tuning won   residue
+  ────────────────  ───────────────   ───────────────   ───────
+  ecd                       −5 116                 0         —
+  htlc                       2 716             2 170       546
+  linear_vesting             2 813             1 758       927
+  two_party_escrow           2 727             2 017       710
+
+The residue column is exactly the gap between the published 1.65 artifact and
+the best 1.67 one, to the lovelace. Ecd is the same effect with the sign
+flipped: its published 1.65 artifact carried uncond=45 and cost 13 002 against
+a 1.65 DEFAULT of 7 886, so that pragma was losing 5 116 lovelace. The 39%
+"improvement" at 1.67 is the removal of a bad budget, not a compiler gain.
+
+The residue is NOT attributed. It is either a change in how the inliner
+responds to budget values while leaving the default outcome alone, or a source
+difference — the published 1.65 rows pin commits that predate several
+optimisation PRs. Separating those needs a two-axis sweep of the current source
+at 1.65, which has not been run.
+
+METHOD WARNING, because this analysis produced a confident wrong answer first.
+Comparing versions requires checking what each codegen option MEANS on every
+version, not just the newest. Builtin casing was opt-in at 1.65 via
+@-fplugin-opt Plinth.Plugin:datatypes=BuiltinCasing@; 1.67 removed that option
+and made casing the default. A first run that simply used "the same source with
+the same options" therefore compared a non-casing 1.65 build against a casing
+1.67 build, and reported 1.66 as 17% worse than 1.67 across every row. The
+confound was in the harness, and the numbers looked entirely plausible. -}
+
 {- Note [Callsite growth is not dominated by uncond]
 The Plinth plugin exposes two inliner budgets, @inline-unconditional-growth@
 and @inline-callsite-growth@. This repository swept only the first for a long
