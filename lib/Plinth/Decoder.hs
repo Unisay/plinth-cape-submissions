@@ -1,7 +1,3 @@
--- CPP gates 'skips' (a PV11-builtin step) to the PREVIEW build: the name
--- does not exist in production builds, so no production splice can reach
--- the dropList builtin even by accident.
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 --
 {-# OPTIONS_GHC -fno-ignore-interface-pragmas #-}
@@ -25,23 +21,17 @@ module Plinth.Decoder (
   pureDecoder,
   fieldRaw,
   skip,
-#ifdef PREVIEW
-  skips,
-#endif
   guardHere,
   walking,
 ) where
 
 import Plinth.Validator (Validator (Validator))
-import PlutusTx.AsData.Internal (wrapTail, wrapUnsafeDataAsConstr)
+import PlutusTx.AsData.Internal (wrapUnsafeDataAsConstr)
 import PlutusTx.Builtins.Internal (BuiltinData, BuiltinList, BuiltinUnit)
 import PlutusTx.Builtins.Internal qualified as BI
 import PlutusTx.Prelude (
   Bool (False, True),
   BuiltinString,
-#ifdef PREVIEW
-  Integer,
-#endif
   traceError,
  )
 
@@ -70,8 +60,11 @@ args as a Haskell list — a full spine fold before the first field is read.
 
 The cursor rests ON the field 'fieldRaw' just read (advancing is always an
 explicit 'skip'), so a region's last read leaves no dead trailing @tailList@
-by construction. 'skip' uses 'wrapTail' (not 'BI.tail') to keep the
-advancing steps recognisable to the Plinth plugin as droppable-when-dead.
+by construction — which is why 'skip' can call 'BI.tail' directly. (Up to
+plutus 1.66 it went through @PlutusTx.AsData.Internal.wrapTail@, an OPAQUE
+alias of 'BI.tail' that marked advancing steps droppable-when-dead for the
+plugin. 1.67 removed it — @asData@ unpacks via list casing now — and the
+decoder never depended on the droppability, only on the alias.)
 -}
 
 -- | A decoder over one @Constr@ spine, parameterised over its continuation.
@@ -115,23 +108,7 @@ fieldRaw = Decoder \s k -> k (BI.head s) s
 -- | Advance the cursor one field.
 {-# INLINE skip #-}
 skip :: Decoder ()
-skip = Decoder \s k -> k () (wrapTail s)
-
-#ifdef PREVIEW
-
-{- | Advance the cursor @n@ fields in ONE @dropList@ call. @dropList@ is a
-batch-6 builtin (PlutusV3 from the van Rossem protocol version), so this
-step exists only in the PREVIEW build — production code cannot even name
-it, and the production build of "Plinth.Decoder.Named" unrolls the gap
-into 'skip' steps instead. Measured against @tailList@ chains (see
-Note [Emitting dropList for wide gaps] in "Plinth.Decoder.Named"): one
-call wins on cpu from a 2-field gap and on total fee from a 3-field gap.
--}
-{-# INLINE skips #-}
-skips :: Integer -> Decoder ()
-skips n = Decoder \s k -> k () (BI.drop n s)
-
-#endif
+skip = Decoder \s k -> k () (BI.tail s)
 
 -- | A boolean guard in the middle of a walk: continue, or abort the script.
 {-# INLINE guardHere #-}

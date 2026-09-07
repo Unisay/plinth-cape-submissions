@@ -39,7 +39,6 @@ import LinearVesting.Fixture (
  )
 import LinearVesting.Fixture qualified as Vesting
 import PlutusLedgerApi.Data.V3
-import PlutusLedgerApi.V1.Data.Value (valueOf)
 import PlutusLedgerApi.V3.Data.Contexts (
   findOwnInput,
   getContinuingOutputs,

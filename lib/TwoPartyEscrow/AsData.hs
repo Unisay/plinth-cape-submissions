@@ -28,7 +28,6 @@ import PlutusLedgerApi.Data.V3
 import PlutusTx
 import PlutusTx.Prelude
 
-import PlutusLedgerApi.V1.Data.Value (lovelaceValueOf)
 import PlutusLedgerApi.V3.Data.Contexts (
   txSignedBy,
   valuePaidTo,

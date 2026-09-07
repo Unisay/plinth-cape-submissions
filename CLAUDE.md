@@ -8,7 +8,7 @@ Plinth (PlutusTx) source for the benchmark scenarios measured by
 [UPLC-CAPE](https://github.com/IntersectMBO/UPLC-CAPE). The `plinth-submissions`
 executable pretty-prints each scenario's `CompiledCode` and writes one `.uplc`
 artefact per scenario **into a sibling UPLC-CAPE checkout** at
-`<CAPE_REPO>/submissions/<scenario>/Plinth_<ver>_Unisay[_preview]/<file>.uplc`.
+`<CAPE_REPO>/submissions/<scenario>/Plinth_<ver>_Unisay/<file>.uplc`.
 There are no tests in this repo — correctness is verified by UPLC-CAPE's
 `cape submission measure` against the committed `.uplc` files.
 
@@ -20,7 +20,7 @@ created on demand.
 ## Build / run
 
 Enter the haskell.nix dev shell first; cabal pins are constrained to plutus
-1.65, which would otherwise lose to whatever is globally installed. The repo
+1.67, which would otherwise lose to whatever is globally installed. The repo
 ships an `.envrc` (`use flake`), so with `direnv` installed and `direnv allow`
 run once, the shell is loaded automatically on `cd` — no explicit
 `nix develop` needed. Otherwise:
@@ -30,31 +30,38 @@ nix develop
 
 # CAPE_REPO must be set (typically via .envrc.local); commands abort otherwise.
 
-# Production submission ( -> Plinth_1.65.0.0_Unisay/ )
+# The submission ( -> Plinth_1.67.0.0_Unisay/ )
 cabal run plinth-submissions
 
-# Preview submission, BuiltinCasing datatypes ( -> Plinth_1.65.0.0_Unisay_preview/ )
-cabal run --flags=preview plinth-submissions
-
-# Formatting (runs fourmolu, cabal-fmt, nixfmt, prettier, shfmt, pretty-uplc)
-treefmt
+# Formatting: only fourmolu is in the dev shell.
+fourmolu -i $(git ls-files '*.hs')
 ```
 
-The `preview` cabal flag does two things in lockstep: passes
-`-fplugin-opt Plinth.Plugin:datatypes=BuiltinCasing` to the library, and sets
-the `PREVIEW` CPP define in `plinth-submissions-app/Main.hs` so writes are
-redirected to the `*_preview` directory. Don't toggle one without the
-other — they're paired in `plinth-cape-submissions.cabal`.
+`treefmt` is the documented entry point in `treefmt.toml` but does not work
+here: `treefmt` and `cabal-fmt` are not in `buildInputs`, and the
+`pretty-uplc` formatter names a command whose executable was removed from the
+cabal file. Adding `treefmt` alone would give a tool that fails on three of its
+six formatters.
+
+There is no preview variant on this branch. 1.67 removed the `BuiltinCasing`
+value of the plugin's `datatypes` option ([plutus#7859][7859]), so the
+`preview` cabal flag, its `PREVIEW` CPP define, and the `dropList` gap
+emission it also gated are all gone. The 1.65 preview submissions stay
+reproducible from the `plinth-1.65` branch.
+
+[7859]: https://github.com/IntersectMBO/plutus/pull/7859
 
 ## Branch model (important)
 
-Four long-lived branches, each producing byte-identical UPLC for a specific
+Five long-lived branches, each producing byte-identical UPLC for a specific
 Plinth release that's referenced from UPLC-CAPE's per-scenario
 `source/README.md`:
 
-- `main` — Plinth **1.65.0.0**. Preview is a cabal flag, not a parallel tree.
-- `plinth-1.64` — frozen at 1.64.0.0; same shape as `main` (preview is a
-  cabal flag). Reproduces every `Plinth_1.64.0.0_Unisay/*.uplc`.
+- `main` — Plinth **1.67.0.0**. No preview variant (see above).
+- `plinth-1.65` — frozen at 1.65.0.0; preview is a cabal flag, writing to
+  `*_Unisay_preview/`.
+- `plinth-1.64` — frozen at 1.64.0.0; same shape, but the preview build writes
+  to `*_Unisay_builtincasing/`.
 - `plinth-1.45` — frozen at 1.45.0.0; has a parallel `lib/Preview/` tree.
 - `plinth-1.61` — frozen at 1.61.0.0; uses `cabal.project.preview` +
   `plinth-submissions-preview` executable.
@@ -62,6 +69,15 @@ Plinth release that's referenced from UPLC-CAPE's per-scenario
 Build invocations differ per branch — consult the branch's README before
 running. **Do not "modernize" the older branches**: their job is to keep
 reproducing the exact UPLC that UPLC-CAPE pins by commit hash.
+
+**Do not infer a submission's directory from the build that produced it.**
+UPLC-CAPE retired the preview track and deleted every `*_Unisay_preview` and
+`*_Unisay_builtincasing` directory, moving those artefacts under the plain
+directory name. Nothing on these branches changed, so the local output path and
+the UPLC-CAPE path now disagree for most casing rows, and which of the two
+builds feeds a given row is a per-row fact. Read that row's own
+`source/README.md`, which names the command and the output path its pinned
+commit produces.
 
 ## Code layout
 
@@ -106,3 +122,15 @@ the public contract of the submission.
 3. In UPLC-CAPE: `cape submission measure --all` to refresh `metrics.json`.
 4. Open a PR against UPLC-CAPE with the new `.uplc`, updated `metrics.json`,
    and the matching `source/README.md` commit pointer back to this repo.
+
+## PR and Issue Text Style
+
+Keep public texts (PR descriptions, issue bodies, review replies) compact — reviewers rewrite wordy descriptions (cf. review of IntersectMBO/plutus#7838).
+
+- Open with the essence in 2–3 plain sentences: what changed, the key assumption or limitation, the consequence. No `## What` / `## Why` scaffolding around content that fits in one paragraph.
+- State every fact exactly once; don't re-derive in a later section what the opening already said.
+- Include measurements only when they justify the change (a perf claim needs numbers); present them as a table, with no narrative repeating what the table shows.
+- No Coverage/testing section by default — the diff shows the tests.
+- Skip background the maintainers already know.
+- One line of provenance: which issue, request, or discussion motivated the change.
+- Deletion test: if removing a sentence loses nothing a reviewer needs, remove it.
