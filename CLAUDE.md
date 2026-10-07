@@ -20,7 +20,7 @@ created on demand.
 ## Build / run
 
 Enter the haskell.nix dev shell first; cabal pins are constrained to plutus
-1.67, which would otherwise lose to whatever is globally installed. The repo
+1.71, which would otherwise lose to whatever is globally installed. The repo
 ships an `.envrc` (`use flake`), so with `direnv` installed and `direnv allow`
 run once, the shell is loaded automatically on `cd` — no explicit
 `nix develop` needed. Otherwise:
@@ -30,7 +30,7 @@ nix develop
 
 # CAPE_REPO must be set (typically via .envrc.local); commands abort otherwise.
 
-# The submission ( -> Plinth_1.67.0.0_Unisay/ )
+# The submission ( -> Plinth_1.71.0.0_Unisay/ )
 cabal run plinth-submissions
 
 # Formatting: only fourmolu is in the dev shell.
@@ -51,13 +51,22 @@ reproducible from the `plinth-1.65` branch.
 
 [7859]: https://github.com/IntersectMBO/plutus/pull/7859
 
+There are no asdata variants at 1.71. The TH-derived `unsafeFromBuiltinData`
+of a sum type (`Maybe`, our redeemers) now compiles to `case` on Data, which
+needs Plutus Core 1.2.0. The plugin emits it even with `target-version=1.1.0`,
+so the three `_asdata` artefacts fail on a PV11 evaluator. The `AsData`
+modules still compile, but `Main` does not write them.
+
 ## Branch model (important)
 
-Six long-lived branches, each producing byte-identical UPLC for a specific
+Seven long-lived branches, each producing byte-identical UPLC for a specific
 Plinth release that's referenced from UPLC-CAPE's per-scenario
 `source/README.md`:
 
-- `main` — Plinth **1.67.0.0**. No preview variant (see above).
+- `main` — Plinth **1.71.0.0**. No preview variant, no asdata variants (see
+  above).
+- `plinth-1.71` — the branch UPLC-CAPE's 1.71 rows name; same history as
+  `main` until `main` moves on.
 - `plinth-1.67` — frozen at 1.67.0.0; contains both 1.67 pins, `bf320db` and
   `f042fed` (the escrow deadline fix below).
 - `plinth-1.65` — frozen at 1.65.0.0; preview is a cabal flag, writing to

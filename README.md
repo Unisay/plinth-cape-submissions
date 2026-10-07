@@ -7,11 +7,17 @@ artefacts that are committed into a sibling `UPLC-CAPE` checkout under
 
 ## Branches
 
-- **`main`** — Plinth 1.67.0.0. One build, one artefact per scenario,
-  written to `Plinth_1.67.0.0_Unisay/`. There is no preview variant:
-  1.67 removed the `BuiltinCasing` value of the plugin's `datatypes`
+- **`main`** — Plinth 1.71.0.0. One build writes seven artefacts to
+  `Plinth_1.71.0.0_Unisay/`. The three `_asdata` variants are not built: under
+  1.71 their derived decoders compile to `case` on Data, which needs Plutus
+  Core 1.2.0 and so cannot run at protocol version 11. There is no preview
+  variant: 1.67 removed the `BuiltinCasing` value of the plugin's `datatypes`
   option ([plutus#7859](https://github.com/IntersectMBO/plutus/pull/7859)),
   so the thing the preview build previewed no longer exists.
+- **`plinth-1.71`** — the branch UPLC-CAPE's 1.71 rows name. Same history as
+  `main` until `main` moves on.
+- **`plinth-1.67`** — frozen at Plinth 1.67.0.0. One build writes ten
+  artefacts, including the `_asdata` variants.
 - **`plinth-1.65`** — frozen at Plinth 1.65.0.0. Preview (BuiltinCasing)
   is a cabal flag; the plain build writes to `Plinth_1.65.0.0_Unisay/` and
   the preview build to `Plinth_1.65.0.0_Unisay_preview/`.
@@ -22,6 +28,9 @@ artefacts that are committed into a sibling `UPLC-CAPE` checkout under
   `Plinth_1.45.0.0_Unisay/*.uplc` currently in UPLC-CAPE.
 - **`plinth-1.61`** — same shape, frozen at the source state that
   produces byte-identical UPLC for every `Plinth_1.61.0.0_Unisay/*.uplc`.
+- **`plinth-<ver>[-<variant>]-escrow-30min`** — one commit on an old
+  `two_party_escrow` pin that sets the refund deadline to 1800000 ms
+  (UPLC-CAPE#252). The pre-1.67 escrow rows pin these. Never delete them.
 
 Each scenario's `source/README.md` in UPLC-CAPE pins a specific commit on
 one of these branches, and names the build command and the output path that
@@ -45,7 +54,7 @@ export CAPE_REPO="$HOME/src/UPLC-CAPE"
 ```sh
 nix develop
 
-# main (Plinth 1.67.0.0) — the only invocation
+# main and plinth-1.71 (Plinth 1.71.0.0), plinth-1.67 (Plinth 1.67.0.0)
 cabal run plinth-submissions
 
 # plinth-1.65 / plinth-1.64 (preview is a cabal flag there)
