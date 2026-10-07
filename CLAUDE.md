@@ -53,11 +53,13 @@ reproducible from the `plinth-1.65` branch.
 
 ## Branch model (important)
 
-Five long-lived branches, each producing byte-identical UPLC for a specific
+Six long-lived branches, each producing byte-identical UPLC for a specific
 Plinth release that's referenced from UPLC-CAPE's per-scenario
 `source/README.md`:
 
 - `main` — Plinth **1.67.0.0**. No preview variant (see above).
+- `plinth-1.67` — frozen at 1.67.0.0; contains both 1.67 pins, `bf320db` and
+  `f042fed` (the escrow deadline fix below).
 - `plinth-1.65` — frozen at 1.65.0.0; preview is a cabal flag, writing to
   `*_Unisay_preview/`.
 - `plinth-1.64` — frozen at 1.64.0.0; same shape, but the preview build writes
@@ -69,6 +71,12 @@ Plinth release that's referenced from UPLC-CAPE's per-scenario
 Build invocations differ per branch — consult the branch's README before
 running. **Do not "modernize" the older branches**: their job is to keep
 reproducing the exact UPLC that UPLC-CAPE pins by commit hash.
+
+**Escrow side branches.** Below 1.67, the `two_party_escrow` rows pin
+`plinth-<ver>[-<variant>]-escrow-30min`, not the frozen branch. Each is one
+commit on the row's old pin that changes the refund deadline from 1800 to
+1800000 ms (UPLC-CAPE#252); the frozen branches keep 1800. Never delete or
+rebase these branches: a fresh clone cannot check out an unreachable pin.
 
 **Do not infer a submission's directory from the build that produced it.**
 UPLC-CAPE retired the preview track and deleted every `*_Unisay_preview` and
