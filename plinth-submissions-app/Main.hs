@@ -12,12 +12,9 @@ import Factorial (factorialCode)
 import Fibonacci (fibonacciCode)
 import FibonacciIterative (fibonacciIterativeCode)
 import HTLC (htlcValidatorCode)
-import HTLC.AsData qualified as HtlcAsData
 import LinearVesting (linearVestingValidatorCode)
-import LinearVesting.AsData qualified as LvAsData
 import PlutusTx.Code (CompiledCode)
 import TwoPartyEscrow (twoPartyEscrowValidatorCode)
-import TwoPartyEscrow.AsData qualified as TpeAsData
 
 plinthVersion :: FilePath
 plinthVersion = "Plinth_1.71.0.0_Unisay"
@@ -41,6 +38,10 @@ write scenario variant =
         <> ".uplc"
     )
 
+{- | Write every submission. The asdata variants are not written: under 1.71
+the derived 'unsafeFromBuiltinData' of a sum type compiles to @case@ on Data,
+which needs Plutus Core 1.2.0 even with @target-version=1.1.0@.
+-}
 main :: IO ()
 main = do
   write "ecd" Nothing ecdCode
@@ -48,8 +49,5 @@ main = do
   write "fibonacci" Nothing fibonacciIterativeCode
   write "factorial_naive_recursion" Nothing factorialCode
   write "linear_vesting" Nothing linearVestingValidatorCode
-  write "linear_vesting" (Just "asdata") LvAsData.linearVestingValidatorCode
   write "htlc" Nothing htlcValidatorCode
-  write "htlc" (Just "asdata") HtlcAsData.htlcValidatorCode
   write "two_party_escrow" Nothing twoPartyEscrowValidatorCode
-  write "two_party_escrow" (Just "asdata") TpeAsData.twoPartyEscrowValidatorCode
