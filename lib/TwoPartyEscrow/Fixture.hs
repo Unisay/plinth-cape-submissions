@@ -13,7 +13,7 @@
 module TwoPartyEscrow.Fixture (
   -- * Escrow Parameters
   escrowPrice,
-  escrowDeadlineSeconds,
+  escrowDeadlineMillis,
   refundTime,
 
   -- * Buyer Fixture Data
@@ -47,13 +47,13 @@ import Prelude
 escrowPrice :: Lovelace
 escrowPrice = Lovelace 75000000
 
--- | Escrow deadline in seconds (30 minutes)
-escrowDeadlineSeconds :: Integer
-escrowDeadlineSeconds = 1800
+-- | Escrow deadline: 30 minutes, in milliseconds like every 'POSIXTime'.
+escrowDeadlineMillis :: Integer
+escrowDeadlineMillis = 1800000
 
 -- | Refund time in POSIXTime (based on deadline)
 refundTime :: POSIXTime
-refundTime = POSIXTime escrowDeadlineSeconds
+refundTime = POSIXTime escrowDeadlineMillis
 
 --------------------------------------------------------------------------------
 -- Buyer Fixture Data ----------------------------------------------------------
