@@ -1,5 +1,5 @@
 {- | Generator for the Plinth submission artefacts on the @main@ branch
-(Plinth 1.67.0.0). Each output path is resolved relative to the UPLC-CAPE
+(Plinth 1.71.0.0). Each output path is resolved relative to the UPLC-CAPE
 checkout pointed to by the required @CAPE_REPO@ environment variable.
 -}
 module Main (main) where
@@ -20,7 +20,7 @@ import TwoPartyEscrow (twoPartyEscrowValidatorCode)
 import TwoPartyEscrow.AsData qualified as TpeAsData
 
 plinthVersion :: FilePath
-plinthVersion = "Plinth_1.67.0.0_Unisay"
+plinthVersion = "Plinth_1.71.0.0_Unisay"
 
 {- | Write a compiled program to
 @$CAPE_REPO/submissions/<scenario>/<plinthVersion>[_<variant>]/<scenario>.uplc@.

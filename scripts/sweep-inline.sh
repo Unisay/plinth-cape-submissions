@@ -29,7 +29,7 @@ source scripts/lib-sweep.sh
 
 MODULE_PATH="${1:?module path required, e.g. lib/HTLC.hs}"
 SCENARIO="${2:?scenario name required, e.g. htlc}"
-SUBDIR="${3:-Plinth_1.67.0.0_Unisay}"
+SUBDIR="${3:-Plinth_1.71.0.0_Unisay}"
 OUT="${4:-scripts/sweep-results-${SCENARIO}.csv}"
 
 read -r -a UNCOND <<< "${UNCOND_VALUES:-default 4 8 12 16 20 24 27 32 40 45 48}"

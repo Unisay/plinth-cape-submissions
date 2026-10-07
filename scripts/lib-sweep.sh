@@ -40,7 +40,7 @@ CSV_HEADER="g_uncond,g_callsite,total_fee,exec_fee,refscript_fee,cpu_sum,mem_sum
 init_sweep() {
   SW_MODULE="${1:?module path required, e.g. lib/HTLC.hs}"
   SW_SCENARIO="${2:?scenario name required, e.g. htlc}"
-  SW_SUBDIR="${3:-Plinth_1.67.0.0_Unisay}"
+  SW_SUBDIR="${3:-Plinth_1.71.0.0_Unisay}"
   SW_OUT="${4:?output csv required}"
 
   SW_EVAL_REPO="${CAPE_EVAL_REPO:-${CAPE_REPO:?CAPE_REPO or CAPE_EVAL_REPO must be set}}"

@@ -14,7 +14,7 @@
 #
 # Env:
 #   SWEEP_SUBDIR  variant subdir to read the artifact from
-#                 (default Plinth_1.67.0.0_Unisay).
+#                 (default Plinth_1.71.0.0_Unisay).
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
@@ -30,7 +30,7 @@ shift 3
   exit 1
 }
 
-init_sweep "$MODULE_PATH" "$SCENARIO" "${SWEEP_SUBDIR:-Plinth_1.67.0.0_Unisay}" "$OUT"
+init_sweep "$MODULE_PATH" "$SCENARIO" "${SWEEP_SUBDIR:-Plinth_1.71.0.0_Unisay}" "$OUT"
 
 total=$#
 for cell in "$@"; do
