@@ -10,50 +10,23 @@
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 
-{- Per-module Plinth inliner tuning: both axes. uncond is pinned at 16 and
-   callsite at 21 for the CAPE objective (happy-path-only total_fee_lovelace).
-   Neither value survives alone: 16 only wins once callsite is 21, which is
-   why the earlier 1-D sweep concluded the default was optimal.
+{- Inliner budgets: uncond 28, callsite 16, swept on both axes against
+   total_fee_lovelace (plutus 1.71, CAPE's 1.63 evaluator). At callsite 16:
 
-   The structure the sweep ran against: accept compares the compile-time
-   script credential instead of locating the own input; accept fuses the
-   withdrawal scan into the seller-payment fold; deposit finds its unique
-   script output in one pass via 'findUniqueE'; accept shares one TxInfo
-   spine walk for inputs/outputs/signatories; lovelace is read positionally
-   via 'adaOf' instead of an 'assetAmount' key lookup.
+     uncond     total_fee
+     default       65 400
+     16            65 072
+     24            65 387
+     26            66 341
+     27            64 742
+     28–29 ◀       63 818   (default pair: 65 247)
+     30            86 808
 
-   Re-swept 1-D on uncond for plutus 1.67, measured on CAPE's 1.63
-   production evaluator:
-
-     uncond        total_fee  exec    refscript  script_size
-     ────────────  ─────────  ──────  ─────────  ───────────
-     1 (dflt)–12 ◀    65 449  45 259     20 190        1 346
-     16               67 017  43 452     23 565        1 571
-     20               68 252  42 137     26 115        1 741
-     24               68 148  41 583     26 565        1 771
-     25–26            67 193  40 793     26 400        1 760
-     27–28            65 474  39 314     26 160        1 744
-     30–48            84 295  38 650     45 645        3 043
-
-   This curve is not monotone, which is what made the old choice look good:
-   27 beats 24 on BOTH axes (less execution AND fewer bytes), so a sweep that
-   stops at the local dip lands there. Measured against the default it still
-   loses, by 25 lovelace — a small margin, but a reproducible one rather than
-   noise, since the same artifact always measures identically. 25, 26, 28 and
-   30 were probed explicitly to confirm nothing in that region beats the
-   default.
-
-   The previous value of 27 was chosen under 1.65, already ranking by fee; it
-   did not survive the compiler bump. Re-sweep after structural changes, and
-   on every plutus bump.
-
-   Both axes are pinned: uncond 16, callsite 21, for 63 432 against 65 449 at
-   the default pair. Neither value wins alone. uncond=16 costs 67 017 at the
-   default callsite and 63 432 at 21, so the earlier 1-D sweep was right to
-   keep the default and wrong about why. See
-   Note [Callsite growth is not dominated by uncond]. -}
-{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=16 #-}
-{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-callsite-growth=21 #-}
+   The optimum is a 2x2 plateau, uncond 28–29 by callsite 15–16. Callsite 17
+   costs 103 359 at uncond 28, so keep callsite below 17 here. 1.67's pair
+   (16, 21) costs 105 952 under 1.71. -}
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=28 #-}
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-callsite-growth=16 #-}
 
 {- |
 The two-party-escrow validator on the 'Validator' monad and

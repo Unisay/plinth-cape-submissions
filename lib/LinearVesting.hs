@@ -10,38 +10,22 @@
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 
-{- Per-module Plinth inliner tuning: callsite only. The plugin default for
-   inline-unconditional-growth (1) is on the optimal plateau for the CAPE
-   objective, so that option stays unset; inline-callsite-growth is not, and
-   is pinned at 21.
+{- Inliner budgets: uncond 4, callsite 21, swept on both axes against
+   total_fee_lovelace (plutus 1.71, CAPE's 1.63 evaluator). At callsite 21:
 
-   Swept 1-D on uncond against total_fee_lovelace (plutus 1.67, measured on
-   CAPE's 1.63 production evaluator, scripts/sweep-inline.sh):
+     uncond     total_fee
+     default       49 768
+     2–3           49 768
+     4 ◀           49 640   (default pair: 53 032)
+     5–16          49 768
+     20            49 881
+     24            53 286
+     28            57 326
 
-     uncond      total_fee  exec    refscript  script_size
-     ──────────  ─────────  ──────  ─────────  ───────────
-     1 (dflt) ◀     51 656  37 646     14 010          934
-     8              51 784  37 729     14 055          937
-     12–16          51 656  37 646     14 010          934
-     20             51 933  35 583     16 350        1 090
-     24             52 241  35 666     16 575        1 105
-     27             55 642  35 167     20 475        1 365
-     32             59 285  33 755     25 530        1 702
-     40–48          60 245  33 755     26 490        1 766
-
-   Execution falls monotonically as the budget rises, but never fast enough
-   to pay for the bytes: from 16 to 48 it buys 3 891 lovelace of execution
-   for 12 480 of reference-script fee. The blip at 8 (+128) is reproducible,
-   not noise — the measurement is deterministic — but too small to matter.
-
-   The previous value of 24 was chosen under 1.65, already ranking by fee;
-   it did not survive the compiler bump. Dropping it saves 585 lovelace
-   (52 241 → 51 656, −1.1%). Re-sweep after structural changes, and on every
-   plutus bump.
-
-   Callsite is pinned at 21 for 49 898, against 51 656 at the default: 1 758
-   lovelace, the whole margin here. See
+   Most of the margin is callsite: 3 264 of the 3 392. uncond 4 adds 128 and
+   holds for callsite 19–24. See
    Note [Callsite growth is not dominated by uncond]. -}
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=4 #-}
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-callsite-growth=21 #-}
 
 {- |

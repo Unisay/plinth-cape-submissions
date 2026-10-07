@@ -288,16 +288,17 @@ instance
   Minus a b gap
 
 {- Note [Callsite growth is not dominated by uncond]
-@inline-callsite-growth=21@ is optimal for all three validators that walk
-through this module, and their plateaus intersect there, so treat it as a
-property of the DSL and not of any one validator. The mechanism: a by-name walk
-is many small continuation lambdas, one per field step, so the budget governing
-inlining AT A CALL SITE is what decides whether a walk fuses.
+A by-name walk is many small continuation lambdas, one per field step, so the
+budget governing inlining AT A CALL SITE is what decides whether a walk fuses.
+All three validators that walk through this module gain from raising
+@inline-callsite-growth@ above its default of 5. Under plutus 1.71 HTLC and
+LinearVesting sit on a 19-24 plateau, and TwoPartyEscrow on 15-16 with a cliff
+at 17, so the value is per validator.
 
-The axes interact and every curve is non-monotone, so sweep callsite first, then
-uncond at the winner, then probe neighbours. Re-sweep on every plutus bump: this
-axis was skipped for a long time on a belief recorded against an older compiler.
-Tables and method in PR #40. -}
+The axes interact and every curve is non-monotone, so sweep both axes as a
+grid, then probe the neighbours of the winner. Re-sweep on every plutus bump:
+1.67's TwoPartyEscrow pair (16, 21) costs 105 952 under 1.71, against 63 818
+at the new optimum. -}
 
 {- Note [Cursor gaps compile to tailList chains]
 A cursor gap could compile to @tailList@ steps or to one @dropList n@ call.

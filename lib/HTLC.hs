@@ -11,38 +11,23 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
-{- Hand-swept Plinth inliner budget: inlining is what collapses the
-'Validator' monad and fuses the decode walks. Swept against the CAPE
-objective (happy-path-only total_fee_lovelace) on plutus 1.67, measured
-on CAPE's 1.63 production evaluator:
+{- Inliner budgets: uncond 10, callsite 21, swept on both axes against
+total_fee_lovelace (plutus 1.71, CAPE's 1.63 evaluator). At callsite 21:
 
-  uncond    total_fee  exec    refscript  script_size
-  ────────  ─────────  ──────  ─────────  ───────────
-  1 (dflt)     26 546  16 736      9 810          654
-  8            26 302  16 612      9 690          646
-  12           26 144  16 529      9 615          641
-  16–20        25 292  15 947      9 345          623
-  24 ◀         24 498  15 393      9 105          607
-  25–26        25 231  15 061     10 170          678
-  27           31 817  14 477     17 340        1 156
-  32           32 517  14 562     17 955        1 197
-  40–48        33 432  14 562     18 870        1 258
+  uncond     total_fee
+  default       25 124
+  8             24 650
+  9             24 491
+  10 ◀          24 363   (default pair: 26 647)
+  11–24         24 491
+  25–26         25 209
+  27            32 263
 
-24 is a genuine local minimum, not a point on a slope: 25 and 26 were
-probed explicitly and both cost more, because that is where the artifact
-starts growing again (607 → 678 bytes) while execution barely improves.
-Past 26 the inliner duplicates matcher code and the reference-script fee
-roughly doubles.
-
-The old value of 32 was chosen under 1.65, already ranking by fee — it did
-not survive the compiler bump rather than having been picked on the wrong
-axis. Re-sweep after structural changes, and on every plutus bump.
-
-Callsite is pinned at 21 for 24 376, against 24 498 at the default; see
-Note [Callsite growth is not dominated by uncond]. uncond stays at 24, which is
-on the 12-24 plateau at that callsite.
+uncond 10 is a one-value dip. Callsite is flat from 19 to 24 at every swept
+uncond up to 24 and jumps at 25; see
+Note [Callsite growth is not dominated by uncond].
 -}
-{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=24 #-}
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=10 #-}
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-callsite-growth=21 #-}
 
 {- |
