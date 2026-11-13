@@ -9,115 +9,44 @@
 {-# OPTIONS_GHC -fno-strictness #-}
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
+-- Budgets 28/16 retained from bcb8d73; not re-swept for revision 2.
+{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=28
+  -fplugin-opt Plinth.Plugin:inline-callsite-growth=16 #-}
 
-{- Inliner budgets: uncond 28, callsite 16, swept on both axes against
-   total_fee_lovelace (plutus 1.71, CAPE's 1.63 evaluator). At callsite 16:
-
-     uncond     total_fee
-     default       65 400
-     16            65 072
-     24            65 387
-     26            66 341
-     27            64 742
-     28–29 ◀       63 818   (default pair: 65 247)
-     30            86 808
-
-   The optimum is a 2x2 plateau, uncond 28–29 by callsite 15–16. Callsite 17
-   costs 103 359 at uncond 28, so keep callsite below 17 here. 1.67's pair
-   (16, 21) costs 105 952 under 1.71. -}
-{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=28 #-}
-{-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-callsite-growth=16 #-}
-
-{- |
-The two-party-escrow validator on the 'Validator' monad and
-"Plinth.Decoder.Named" walk regions — the "HTLC.Monadic" recipe.
-
-The escrow parties, price and script address are compile-time fixture
-constants, so every comparison against them is one 'equalsData' on raw
-bytes: the datum's state is checked by constructor tag alone, payments are
-summed by folding the outputs' raw lovelace entries ('foldE' + 'adaOf', a
-positional read of the canonical ada-first 'Value') instead of decoding and
-unioning whole 'Value's the way @valuePaidTo@ does, and an escrow input is
-recognised by its payment
-credential equalling the script's own plus raw amount. The only structural
-decodes left are the deposit-time integer and the interval bounds.
--}
+-- | Revision 2: one thread-token minting policy and spending validator.
 module TwoPartyEscrow (
   twoPartyEscrowValidatorCode,
   twoPartyEscrowValidator,
 ) where
 
-import Plinth.Decoder.Named (
-  atField,
-  field,
-  fields,
-  walk,
-  walkRaw,
-  yield,
- )
+import Plinth.Decoder.Named (atField, field, fields, walk, walkRaw, yield)
 import Plinth.Decoder.Named qualified as N
-import Plinth.Decoder.Named.ScriptContext (
-  AddressCredential,
-  BoundClosure,
-  BoundExtended,
-  FiniteValue,
-  IntervalFrom,
-  IntervalTo,
-  JustValue,
-  OutputDatumDatum,
-  ScriptContextRedeemer,
-  ScriptContextScriptInfo,
-  ScriptContextTxInfo,
-  SpendingScriptDatum,
-  TxInInfoResolved,
-  TxInfoInputs,
-  TxInfoOutputs,
-  TxInfoSignatories,
-  TxInfoValidRange,
-  TxOutAddress,
-  TxOutDatum,
-  TxOutValue,
-  adaOf,
- )
-import Plinth.Encoded (
-  Encoded (Encoded),
-  anyE,
-  decode,
-  encoded,
-  findUniqueE,
-  foldE,
-  tagOf,
- )
-import Plinth.Validator (
-  Validator,
-  runValidator,
-  validate,
- )
+import Plinth.Decoder.Named.ScriptContext
+import Plinth.Encoded
+import Plinth.Validator (Validator, runValidator, validate)
 import Plinth.Validator qualified as V
 import PlutusLedgerApi.Data.V3 (
   Credential,
+  CurrencySymbol,
   Datum (getDatum),
   Lovelace (getLovelace),
-  LowerBound,
+  MintValue,
   POSIXTime (getPOSIXTime),
-  POSIXTimeRange,
   Redeemer (getRedeemer),
   ScriptContext,
   ScriptInfo,
-  TxInInfo,
+  TokenName,
   TxInfo,
   TxOut,
-  UpperBound,
-  pattern PubKeyCredential,
  )
 import PlutusTx qualified
+import PlutusTx.Builtins.Internal qualified as BI
 import PlutusTx.Code (CompiledCode)
+import PlutusTx.Data.AssocMap (Map)
+import PlutusTx.Data.AssocMap qualified as Map
 import PlutusTx.Data.List (List)
 import PlutusTx.Prelude
 import TwoPartyEscrow.Fixture qualified as Escrow
-
---------------------------------------------------------------------------------
--- Validator -------------------------------------------------------------------
 
 twoPartyEscrowValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
 twoPartyEscrowValidatorCode = $$(PlutusTx.compile [||twoPartyEscrowValidator||])
@@ -131,215 +60,129 @@ twoPartyEscrowValidator ctxData = runValidator V.do
          , ScriptContextRedeemer
          , ScriptContextScriptInfo
          )
-  -- The redeemer's content is a raw integer; anything else fails right here.
-  let action :: Integer = unsafeFromBuiltinData (getRedeemer (decode redeemer))
-  if
-    | action == 0 -> validateDeposit txInfo
-    | action == 1 -> validateAccept txInfo scriptInfo
-    | action == 2 -> validateRefund txInfo scriptInfo
-    | otherwise -> traceError "Invalid redeemer"
+  let purpose = tagOf scriptInfo
+  if purpose == 0 || purpose == 1
+    then
+      let action :: Integer = unsafeFromBuiltinData (getRedeemer (decode redeemer))
+       in if purpose == 0
+            then
+              let policy = atField @MintingScriptPolicy scriptInfo
+               in if
+                    | action == 0 -> validateDeposit txInfo policy
+                    | action == 1 || action == 2 ->
+                        validate "B1" (exactMint txInfo policy (-1))
+                    | otherwise -> traceError "X1"
+            else
+              if action == 1 || action == 2
+                then validateSpend action txInfo scriptInfo
+                else traceError "X1"
+    else traceError "X2"
 
-{- | Buyer deposits: exactly one script output of exactly the escrow price,
-carrying a @Deposited@ datum stamped with the validity window's upper bound.
--}
-validateDeposit :: Encoded TxInfo -> Validator ()
-validateDeposit txInfo = V.do
-  (validRange, signatories) <-
-    walk txInfo (fields @(TxInfoValidRange, TxInfoSignatories))
-  validate "Buyer signature missing" do
-    anyE (== encoded Escrow.buyerKeyHash) signatories
-  let escrowAddress = encoded Escrow.scriptAddr
-  let outputs = atField @TxInfoOutputs txInfo
-  let isScriptOutput o = atField @TxOutAddress o == escrowAddress
-  -- Exactly one script output, in a single pass.
-  let onlyOut =
-        findUniqueE
-          "No script outputs created"
-          "Too many script outputs created"
-          isScriptOutput
-          outputs
-  validate "Wrong script output amount" do
-    lovelaceOf onlyOut == escrowPrice
-  let outDatum = atField @TxOutDatum onlyOut
-  validate "Invalid or missing deposit datum" do
-    tagOf outDatum == 2 -- inline OutputDatum
-  (state, depositTime) <-
-    walkRaw @Escrow.Datum
-      (getDatum (decode (atField @OutputDatumDatum outDatum)))
-      $ fields @(Escrow.EscrowState, Escrow.DepositTime)
-  validate "Invalid or missing deposit datum" do
-    tagOf state == 0 -- Deposited
-  validate "Invalid or missing deposit datum" do
-    getPOSIXTime (decode depositTime) == upperBoundTime validRange
+validateDeposit :: Encoded TxInfo -> Encoded CurrencySymbol -> Validator ()
+validateDeposit txInfo policy = V.do
+  (outputs, validRange, signatories) <-
+    walk
+      txInfo
+      (fields @(TxInfoOutputs, TxInfoValidRange, TxInfoSignatories))
+  validate "D1" (anyE (== encoded Escrow.buyerKeyHash) signatories)
+  validate "D3" (exactMint txInfo policy 1)
+  let ownCredential = scriptCredential policy
+  let onlyOut = findUniqueE "D4" "D4" (atCredential ownCredential) outputs
+  validate "D5" (lovelaceOf onlyOut == price)
+  validate "D6" do
+    assetAmount (atField @TxOutValue onlyOut) policy (encoded Escrow.tokenName)
+      == 1
+  let upper = atField @BoundExtended (atField @IntervalTo validRange)
+  if tagOf upper == 1
+    then V.do
+      validate "D7" do
+        let depositTime = getPOSIXTime (decode (atField @FiniteValue upper)) - 1
+        atField @TxOutDatum onlyOut
+          == Encoded
+            (BI.mkConstr 2 (BI.mkCons (escrowDatum depositTime) (BI.mkNilData BI.unitval)))
+    else traceError "D2"
 
-{- | Seller accepts: nothing stays at the script, the escrow price reaches
-the seller, and a funded escrow input is actually being spent.
--}
-validateAccept :: Encoded TxInfo -> Encoded ScriptInfo -> Validator ()
-validateAccept txInfo scriptInfo = V.do
-  datumJust <- walk scriptInfo (field @SpendingScriptDatum)
-  (state, _) <- escrowDatum datumJust
-  validate "Accept only valid from Deposited state" do
-    tagOf state == 0 -- Deposited
-  (inputs, outputs, signatories) <-
-    walk txInfo (fields @(TxInfoInputs, TxInfoOutputs, TxInfoSignatories))
-  validate "Seller signature missing" do
-    anyE (== encoded Escrow.sellerKeyHash) signatories
-  validate "No valid escrow deposit found in inputs" do
-    anyE isEscrowInput inputs
-  -- One fold: sum the lovelace to the seller and reject any output back to the
-  -- script's own credential (the own input sits there, so the guard is the
-  -- compile-time constant). Payment credential only: a staking part on the same
-  -- credential still locks funds here.
-  let sellerCred = encoded (PubKeyCredential Escrow.sellerKeyHash)
-  let paidToSeller =
-        foldE
-          ( \acc o ->
-              let cred = atField @AddressCredential (atField @TxOutAddress o)
-               in if cred == escrowCredential
-                    then traceError "Incomplete withdrawal - funds remain in script"
-                    else if cred == sellerCred then acc + lovelaceOf o else acc
-          )
-          0
-          outputs
-  validate "Incorrect payment to seller" do
-    paidToSeller == escrowPrice
+validateSpend ::
+  Integer -> Encoded TxInfo -> Encoded ScriptInfo -> Validator ()
+validateSpend action txInfo scriptInfo = V.do
+  (inputs, outputs, mint, validRange, signatories) <-
+    walk txInfo N.do
+      (inputs, outputs, mint, validRange) <-
+        fields @(TxInfoInputs, TxInfoOutputs, TxInfoMint, TxInfoValidRange)
+      signatories <- field @TxInfoSignatories
+      yield (inputs, outputs, mint, validRange, signatories)
+  let ownRef = atField @SpendingScriptOutRef scriptInfo
+  let ownInput = findE "S1" ((== ownRef) . atField @TxInInfoOutRef) inputs
+  let ownCredential =
+        atField @AddressCredential
+          (atField @TxOutAddress (atField @TxInInfoResolved ownInput))
+  validate "S1" (tagOf ownCredential == 1)
+  let Encoded ownHash = atField @ScriptCredentialHash ownCredential
+  let policy = Encoded ownHash :: Encoded CurrencySymbol
+  validate "S2" do
+    countE (atCredential ownCredential . atField @TxInInfoResolved) inputs == 1
+  validate "S3" (mintAmount mint policy == -1)
+  if action == 1
+    then V.do
+      validate "A1" (anyE (== encoded Escrow.sellerKeyHash) signatories)
+      validate "A2" (paidTo Escrow.sellerKeyHashBytes outputs >= price)
+    else V.do
+      validate "R1" (anyE (== encoded Escrow.buyerKeyHash) signatories)
+      let lower = atField @BoundExtended (atField @IntervalFrom validRange)
+      validate "R2" do
+        tagOf lower
+          == 1
+          && getPOSIXTime (decode (atField @FiniteValue lower))
+          > spendingDepositTime scriptInfo
+          + getPOSIXTime Escrow.refundTime
+      validate "R3" (paidTo Escrow.buyerKeyHashBytes outputs >= price)
 
-{- | Buyer refunds after the deadline: same shape as accept, but the funds
-must come back to the buyer and only after @depositTime + refundTime@.
--}
-validateRefund :: Encoded TxInfo -> Encoded ScriptInfo -> Validator ()
-validateRefund txInfo scriptInfo = V.do
-  datumJust <- walk scriptInfo (field @SpendingScriptDatum)
-  (state, datumEsc) <- escrowDatum datumJust
-  validate "Refund only valid from Deposited state" do
-    tagOf state == 0 -- Deposited
-  (validRange, signatories) <-
-    walk txInfo (fields @(TxInfoValidRange, TxInfoSignatories))
-  validate "Buyer signature missing" do
-    anyE (== encoded Escrow.buyerKeyHash) signatories
-  depositTime <- walk datumEsc (field @Escrow.DepositTime)
-  validate "Refund time not reached" do
-    lowerBoundTime validRange
-      > getPOSIXTime (decode depositTime)
-      + getPOSIXTime Escrow.refundTime
-  let inputs = atField @TxInfoInputs txInfo
-  validate "No valid escrow deposit found in inputs" do
-    anyE isEscrowInput inputs
-  validate "Incorrect refund to buyer" do
-    lovelacePaidTo
-      (PubKeyCredential Escrow.buyerKeyHash)
-      (atField @TxInfoOutputs txInfo)
-      == escrowPrice
+-- | Both Value and MintValue encode a nested map; mint has no ADA entry.
+exactMint :: Encoded TxInfo -> Encoded CurrencySymbol -> Integer -> Bool
+exactMint txInfo policy quantity =
+  let Encoded mint = atField @TxInfoMint txInfo
+   in lookupE
+        policy
+        False
+        (== encoded (Map.singleton Escrow.tokenName quantity))
+        (Encoded mint :: Encoded (Map CurrencySymbol (Map TokenName Integer)))
 
---------------------------------------------------------------------------------
--- Decoding helpers -------------------------------------------------------------
+mintAmount :: Encoded MintValue -> Encoded CurrencySymbol -> Integer
+mintAmount (Encoded mint) policy =
+  assetAmount (Encoded mint) policy (encoded Escrow.tokenName)
 
-{- | Unwrap the spending datum's @Just@ once: the state field (checked by
-'tagOf' at the call sites) plus the datum as an 'Encoded' 'Escrow.Datum'
-view, so a branch that later needs another field re-walks it without
-re-unwrapping.
-Grabbing the time field here as well measures WORSE (+180 fee) — the same
-early-grab loss as HTLC's and LinearVesting's region-merge experiments.
--}
-escrowDatum ::
-  Encoded (Maybe Datum) -> Validator (Encoded Escrow.State, Encoded Escrow.Datum)
-escrowDatum datumJust = V.do
-  datum <- walk datumJust (field @JustValue)
-  let datumBd = getDatum (decode datum)
-  walkRaw @Escrow.Datum datumBd N.do
-    state <- field @Escrow.EscrowState
-    yield (state, Encoded datumBd)
+scriptCredential :: Encoded CurrencySymbol -> Encoded Credential
+scriptCredential (Encoded policy) =
+  Encoded (BI.mkConstr 1 (BI.mkCons policy (BI.mkNilData BI.unitval)))
 
---------------------------------------------------------------------------------
--- Guard predicates -------------------------------------------------------------
+atCredential :: Encoded Credential -> Encoded TxOut -> Bool
+atCredential credential output =
+  atField @AddressCredential (atField @TxOutAddress output) == credential
 
--- | The escrow price in lovelace, as a bare integer.
-escrowPrice :: Integer
-escrowPrice = getLovelace Escrow.escrowPrice
-
-{- | The escrow script's own payment credential, as a raw view for one
-'equalsData' comparison.
--}
-escrowCredential :: Encoded Credential
-escrowCredential = encoded Escrow.scriptCredential
-
-{- | An input spending the escrow script's own credential and carrying exactly
-the escrow price. Matching the script's own credential — not merely any script
-credential — stops an unrelated script UTxO of the same amount from standing in
-for the deposit.
--}
-isEscrowInput :: Encoded TxInInfo -> Bool
-isEscrowInput i =
-  let out = atField @TxInInfoResolved i
-   in atField @AddressCredential (atField @TxOutAddress out)
-        == escrowCredential
-        && lovelaceOf out
-        == escrowPrice
-
-{- | The lovelace in an output's 'Value', read positionally ('adaOf'): no
-asset-key comparison, since a ledger output's ADA entry is always first.
--}
 lovelaceOf :: Encoded TxOut -> Integer
-lovelaceOf o = adaOf (atField @TxOutValue o)
+lovelaceOf output = adaOf (atField @TxOutValue output)
 
-{- | Total lovelace paid to a payment credential, summed over the outputs
-with one raw walk — no 'Value' union, unlike @valuePaidTo@. Staking parts
-are ignored, matching @pubKeyOutputsAt@.
--}
-lovelacePaidTo :: Credential -> Encoded (List TxOut) -> Integer
-lovelacePaidTo cred outputs =
-  let credE = encoded cred
+price :: Integer
+price = getLovelace Escrow.escrowPrice
+
+paidTo :: BuiltinByteString -> Encoded (List TxOut) -> Integer
+paidTo key outputs =
+  let credential = Encoded (BI.mkConstr 0 (BI.mkCons (BI.mkB key) (BI.mkNilData BI.unitval)))
    in foldE
-        ( \acc o ->
-            if atField @AddressCredential (atField @TxOutAddress o) == credE
-              then acc + lovelaceOf o
-              else acc
+        ( \total output ->
+            if atCredential credential output
+              then total + lovelaceOf output
+              else total
         )
         0
         outputs
 
---------------------------------------------------------------------------------
--- Other helper functions -------------------------------------------------------
+escrowDatum :: Integer -> BuiltinData
+escrowDatum time = BI.mkConstr 0 (BI.mkCons (BI.mkI time) (BI.mkNilData BI.unitval))
 
--- | Earliest time in a validity range (finite lower bound, @+1@ if exclusive).
-lowerBoundTime :: Encoded POSIXTimeRange -> Integer
-lowerBoundTime range =
-  lowerTime
-    1
-    "Lower bound of valid range must be finite"
-    (atField @IntervalFrom range)
-
--- | Latest time in a validity range (finite upper bound, @-1@ if exclusive).
-upperBoundTime :: Encoded POSIXTimeRange -> Integer
-upperBoundTime range =
-  upperTime
-    (negate 1)
-    "Upper bound of valid range must be finite"
-    (atField @IntervalTo range)
-
--- | The time of a finite lower interval bound, @+@'openAdj' when exclusive.
-lowerTime ::
-  Integer -> BuiltinString -> Encoded (LowerBound POSIXTime) -> Integer
-lowerTime openAdj msg bound =
-  let ext = atField @BoundExtended bound
-   in if tagOf ext == 1
-        then
-          let t = getPOSIXTime (decode (atField @FiniteValue ext))
-           in if tagOf (atField @BoundClosure bound) == 1
-                then t
-                else t + openAdj
-        else traceError msg
-
--- | The time of a finite upper interval bound, @+@'openAdj' when exclusive.
-upperTime ::
-  Integer -> BuiltinString -> Encoded (UpperBound POSIXTime) -> Integer
-upperTime openAdj msg bound =
-  let ext = atField @BoundExtended bound
-   in if tagOf ext == 1
-        then
-          let t = getPOSIXTime (decode (atField @FiniteValue ext))
-           in if tagOf (atField @BoundClosure bound) == 1
-                then t
-                else t + openAdj
-        else traceError msg
+-- Deposit establishes the exact datum shape. Refund needs only its time.
+spendingDepositTime :: Encoded ScriptInfo -> Integer
+spendingDepositTime scriptInfo =
+  let datum = atField @JustValue (atField @SpendingScriptDatum scriptInfo)
+      raw = getDatum (decode datum)
+   in BI.unsafeDataAsI (BI.head (BI.snd (BI.unsafeDataAsConstr raw)))

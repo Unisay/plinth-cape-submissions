@@ -47,7 +47,7 @@ buyerKeyHash = PubKeyHash buyerKeyHashBytes
 buyerKeyHashBytes :: BuiltinByteString
 buyerKeyHashBytes =
   stringToBuiltinByteStringHex
-    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 --------------------------------------------------------------------------------
 -- Seller Fixture Data ---------------------------------------------------------
@@ -60,8 +60,13 @@ sellerKeyHash = PubKeyHash sellerKeyHashBytes
 sellerKeyHashBytes :: BuiltinByteString
 sellerKeyHashBytes =
   stringToBuiltinByteStringHex
-    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
+-- | The protocol's thread-token name (ASCII bytes 657363726f77).
+tokenName :: TokenName
+tokenName = TokenName "escrow"
+
+-- Revision-1 declarations, used only by the non-emitted TwoPartyEscrow.AsData.
 --------------------------------------------------------------------------------
 -- Script Address ---------------------------------------------------------------
 
