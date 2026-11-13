@@ -25,6 +25,7 @@ module Plinth.Decoder.Named.ScriptContext (
 
   -- * V3 'ScriptInfo' field tags (per constructor)
   -- $spendingScript
+  MintingScriptPolicy,
   SpendingScriptOutRef,
   SpendingScriptDatum,
 
@@ -60,6 +61,7 @@ module Plinth.Decoder.Named.ScriptContext (
   TxOutDatum,
   AddressCredential,
   PubKeyCredentialHash,
+  ScriptCredentialHash,
 
   -- * 'Interval' field tags
   IntervalFrom,
@@ -111,6 +113,7 @@ import PlutusLedgerApi.Data.V3 (
   PubKeyHash,
   Redeemer,
   ScriptContext,
+  ScriptHash,
   ScriptInfo,
   ScriptPurpose,
   TokenName,
@@ -152,6 +155,10 @@ The fields of the @SpendingScript@ constructor (Constr tag 1) of
 spending constructor without verifying the tag — only walk one when the
 script kind is already known (e.g. a spending validator).
 -}
+
+data MintingScriptPolicy
+
+instance FieldAt MintingScriptPolicy ScriptInfo N0 CurrencySymbol
 
 data SpendingScriptOutRef
 
@@ -273,6 +280,10 @@ data AddressCredential
 COMMITS to the constructor without verifying the tag — check 'tagOf' first
 when the credential kind is not an invariant.
 -}
+data ScriptCredentialHash
+
+instance FieldAt ScriptCredentialHash Credential N0 ScriptHash
+
 data PubKeyCredentialHash
 
 instance FieldAt TxInInfoOutRef TxInInfo N0 TxOutRef
