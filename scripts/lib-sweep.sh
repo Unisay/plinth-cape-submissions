@@ -67,7 +67,6 @@ init_sweep() {
   SW_METRICS="$(mktemp -t sweep-metrics.XXXXXX.json)"
   SW_BACKUP="$(mktemp)"
   SW_STRIPPED="$(mktemp)"
-  SW_LOG="$(mktemp -t sweep-build.XXXXXX.log)"
   cp "$SW_MODULE" "$SW_BACKUP"
   # Drop pre-existing inline-* pragmas so each cell measures exactly what it
   # sets. Anchored to the pragma form on purpose: a looser match also eats the
@@ -98,6 +97,11 @@ run_cell() {
 
   printf '[%s/%s] uncond=%s callsite=%s ... ' "$SW_I" "$total" "$g_un" "$g_cs" >&2
 
+  # One log per cell, kept only on failure: a single shared log let the next
+  # cell overwrite the evidence for the one that just failed.
+  local SW_LOG
+  SW_LOG="$(mktemp -t "sweep-build.${g_un}-${g_cs}.XXXXXX.log")"
+
   if ! CAPE_REPO="$SW_STAGE" cabal run -v0 plinth-submissions > "$SW_LOG" 2>&1; then
     echo "BUILD FAILED (log: $SW_LOG)" >&2
     echo "$g_un,$g_cs,,,,,,,,build_failed" >> "$SW_OUT"
@@ -126,6 +130,7 @@ run_cell() {
   )
   printf 'fee=%s (exec %s + ref %s)  size=%s\n' "$fee" "$exec_fee" "$ref_fee" "$size" >&2
   echo "$g_un,$g_cs,$fee,$exec_fee,$ref_fee,$cpu,$mem,$size,$term,ok" >> "$SW_OUT"
+  rm -f "$SW_LOG"
 }
 
 finish_sweep() {
@@ -135,6 +140,8 @@ finish_sweep() {
   echo "Top 5 cells by total_fee_lovelace (ascending):" >&2
   (
     head -1 "$SW_OUT"
-    tail -n +2 "$SW_OUT" | grep ',ok$' | sort -t, -k3,3n | head -5
+    # `|| true`: with every cell failed, grep exits 1 and pipefail would
+    # abort the caller before the summary prints.
+    tail -n +2 "$SW_OUT" | { grep ',ok$' || true; } | sort -t, -k3,3n | head -5
   ) | column -t -s, >&2
 }

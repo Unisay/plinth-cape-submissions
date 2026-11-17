@@ -15,10 +15,12 @@
 # Env:
 #   UNCOND_VALUES    space-separated budgets to try (default: see below).
 #   CALLSITE_VALUES  if set, sweeps uncond x callsite instead of uncond alone.
-#                    Left at default normally: the Ecd and HTLC notes both
-#                    record callsite saturating at a shallow plateau and being
-#                    dominated by uncond once uncond is tuned. Set it to
-#                    re-test that on a scenario whose fee curve looks off.
+#                    SET IT for anything that walks Plinth.Decoder.Named. The
+#                    older note claiming callsite saturates and is dominated by
+#                    uncond was measured on an older compiler and is false at
+#                    1.67: callsite=21 is worth 122 to 2 017 lovelace on the
+#                    three DSL validators. The axes interact, so sweep callsite
+#                    first, then uncond at the winner.
 
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
