@@ -1,0 +1,86 @@
+name: Reusable UPLC checks
+
+on:
+  workflow_call:
+    inputs:
+      base:
+        description: Caller PR base branch
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Build and reproduce UPLC
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      SOURCE_BASE: ${{ inputs.base }}
+    steps:
+      - name: Recover disk space for Nix
+        uses: wimpysworld/nothing-but-nix@687c797a730352432950c707ab493fcc951818d7 # v10
+
+      - name: Check out PR merge source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          path: source
+          persist-credentials: false
+
+      - name: Check out immutable CI tools
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: Unisay/plinth-cape-submissions
+          # Updated only after the corresponding tools commit exists.
+          ref: 81c86a145cd7b3693c373bc72ccd011071c29d6f
+          path: tools
+          persist-credentials: false
+
+      - name: Test CI failure handling
+        run: python3 tools/ci/test_check.py
+
+      - name: Prepare branch profile
+        id: profile
+        run: python3 tools/ci/check.py prepare --branch "$SOURCE_BASE" --source source >> "$GITHUB_OUTPUT"
+
+      - name: Restore Cabal store
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.cabal/store
+          key: ${{ runner.os }}-${{ steps.profile.outputs.cache_key }}
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31
+        with:
+          extra_nix_config: |
+            accept-flake-config = true
+
+      - name: Use public Cachix downloads
+        uses: cachix/cachix-action@38b082610b782e7e93e209c35fd730d399dee866 # v17
+        with:
+          name: uplc-cape
+          skipPush: true
+
+      - name: Check out frozen CAPE suite
+        if: steps.profile.outputs.escrow_revision == '2'
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: IntersectMBO/UPLC-CAPE
+          ref: ${{ steps.profile.outputs.cape_revision }}
+          path: cape
+          persist-credentials: false
+
+      - name: Build and verify declared outputs
+        run: |
+          python3 tools/ci/check.py verify --branch "$SOURCE_BASE" \
+            --source source --results "$RUNNER_TEMP/uplc-ci-results" --cape cape
+
+      - name: Keep build and evaluator evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: uplc-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/uplc-ci-results
+          if-no-files-found: warn
+          retention-days: 14
