@@ -47,18 +47,17 @@ def git(source, *arguments):
     return subprocess.check_output(["git", "-C", str(source), *arguments], text=True).strip()
 
 
-def cache_key(source, branch):
-    configuration(branch)
-    names = git(source, "ls-files", "-z").split("\0")
-    inputs = sorted(name for name in names if (
-        name in {"flake.nix", "flake.lock", "cabal.project", "cabal.project.preview"}
-        or name.endswith((".cabal", ".freeze"))
-    ))
-    require(inputs, "No pinned build inputs found")
-    hasher = hashlib.sha256()
-    for name in inputs:
-        hasher.update(name.encode() + b"\0" + (source / name).read_bytes() + b"\0")
-    return "cabal-" + branch.replace("/", "-") + "-" + hasher.hexdigest()
+def resolved_toolchain(source, profile):
+    plan = read_json(source / "dist-newstyle/cache/plan.json")
+    require(plan.get("compiler-id") == profile["compiler"],
+            f"Resolved GHC differs from declared {profile['compiler']}")
+    versions = {}
+    for name in ["plutus-core", "plutus-ledger-api", "plutus-tx", "plutus-tx-plugin"]:
+        found = {item.get("pkg-version") for item in plan["install-plan"] if item.get("pkg-name") == name}
+        require(found == {profile["plutus_version"]},
+                f"Resolved {name} versions {found} differ from declared {profile['plutus_version']}")
+        versions[name] = sorted(found)
+    return {"compiler": plan["compiler-id"], "packages": versions}
 
 
 def inventory(directory):
@@ -157,7 +156,7 @@ def run(args):
                 "Commit source/build-input changes before recording their expected outputs")
     else:
         expected = validate_manifest(read_json(manifest_path), args.branch, profile)
-    actual, timings, tested = {}, {}, []
+    actual, timings, tested, toolchains = {}, {}, [], {}
     # All invocations, including CAPE, share one lock and run strictly sequentially.
     lock_path = Path("/tmp") / f"plinth-cape-cabal-index-{os.getuid()}.lock"
     with lock_path.open("a") as lock:
@@ -172,6 +171,7 @@ def run(args):
             timings[name] = command([
                 "nix", "develop", "--accept-flake-config", "--command", "cabal", *build["arguments"],
             ], source, results / f"build-{name}.log", environment)
+            toolchains[name] = resolved_toolchain(source, profile)
             actual[name] = inventory(stage)
             (results / "actual-outputs.json").write_text(json.dumps(actual, indent=2) + "\n")
             if expected is not None:
@@ -193,6 +193,7 @@ def run(args):
     summary = {"base": args.branch, "source_revision": git(source, "rev-parse", "HEAD"),
                "mode": args.mode, "build_seconds": timings, "outputs": actual,
                "total_seconds": round(time.monotonic() - started, 3),
+               "resolved_toolchains": toolchains,
                "escrow_revision": profile["escrow_revision"], "escrows_tested": tested,
                "semantics": "pinned revision-2 suite" if tested else "legacy: reproduction only"}
     (results / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
@@ -211,7 +212,6 @@ def main():
     try:
         if args.mode == "prepare":
             config, _ = configuration(args.branch)
-            print("cache_key=" + cache_key(args.source.resolve(), args.branch))
             print("cape_revision=" + (config["cape"]["revision"] or ""))
             print("escrow_revision=" + str(config["branches"][args.branch]["escrow_revision"]))
             return

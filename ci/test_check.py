@@ -83,6 +83,25 @@ class CIContract(unittest.TestCase):
                 ci.run(args)
         self.assertFalse((source / "ci/expected-outputs.json").exists())
 
+    def test_wrong_resolved_plugin_or_ghc_fails(self):
+        path = self.root / "dist-newstyle/cache/plan.json"
+        path.parent.mkdir(parents=True)
+        plan = {"compiler-id": "ghc-9.6.7", "install-plan": [
+            {"pkg-name": name, "pkg-version": "1.71.0.0"}
+            for name in ["plutus-core", "plutus-ledger-api", "plutus-tx", "plutus-tx-plugin"]
+        ]}
+        profile = {"compiler": "ghc-9.6.7", "plutus_version": "1.71.0.0"}
+        path.write_text(json.dumps(plan))
+        self.assertEqual(ci.resolved_toolchain(self.root, profile)["compiler"], "ghc-9.6.7")
+        plan["install-plan"][-1]["pkg-version"] = "1.45.0.0"
+        path.write_text(json.dumps(plan))
+        with self.assertRaisesRegex(ci.CheckError, "plutus-tx-plugin"):
+            ci.resolved_toolchain(self.root, profile)
+        plan["compiler-id"] = "ghc-9.8.4"
+        path.write_text(json.dumps(plan))
+        with self.assertRaisesRegex(ci.CheckError, "GHC"):
+            ci.resolved_toolchain(self.root, profile)
+
     def test_source_tree_cannot_be_used_as_results_directory(self):
         args = argparse.Namespace(branch="main", source=self.root, results=self.root, mode="verify")
         with self.assertRaisesRegex(ci.CheckError, "outside the source"):

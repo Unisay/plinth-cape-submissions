@@ -8,16 +8,18 @@ CAPE suite. It does not update or certify CAPE metrics. The five legacy bases
 check build/reproduction only; revision-2 tests do not apply to their contracts.
 Confirm the exact required-check name on the first hosted run.
 
-`profiles.json` records the actual build invocations. Older preview projects,
-CPP flags and local output suffixes are preserved. All builds run sequentially
-under one Cabal-index lock. The job preserves the Nix and Cabal stores and uses
-public Nix/Cachix substitutes without a write token. The Cabal store cache key
-includes the branch and pinned plan inputs. Cache eviction can make later runs
-cold; a warm cache is not guaranteed for all compiler lines. A hosted cold run
-also depends on public substitutes for GHC and the Plutus libraries: local
-Nix-store hits do not establish that availability. Check representative hosted
-runs before rollout. Priming a public cache, if needed, requires a separate
-approved cache-write setup on trusted pushes; PR jobs stay read-only.
+`profiles.json` records only the invocations CAPE uses for each base: 1.45 uses
+the default project, 1.61 uses the separate preview project, and 1.64/1.65 use
+both flag variants. All emissions of each selected invocation are checked,
+including sibling artifacts. Older preview projects, CPP flags and local output
+suffixes are preserved. All builds run sequentially
+under one Cabal-index lock. The resolved Cabal plan must contain the declared
+GHC and Plutus release, including the plugin; shell-global package precedence
+cannot silently change the compiler used. The job preserves shared Nix/Cabal
+stores and consumes public Cachix downloads without a write token. It does not
+prime or write caches. A hosted cold run depends on public substitutes for GHC
+and the Plutus libraries: local store hits do not establish availability. Cold
+hosted performance remains a rollout gate.
 
 Run from a clean source checkout after committing changes to compiler inputs or
 Haskell. Put results outside that checkout:
