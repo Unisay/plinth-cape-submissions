@@ -8,18 +8,28 @@
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 
--- No explicit export list: 'deriveLayoutFor' generates the field-layout tag
--- types (see "Plinth.Decoder.Named.TH"), whose names cannot be enumerated in
--- an export list here, so the whole module is exported instead.
+-- | Parameters and single-field datum for the thread-token escrow.
+module TwoPartyEscrow.Fixture (
+  -- * Escrow Parameters
+  EscrowDatum (..),
+  tokenName,
+  escrowPrice,
+  escrowDeadlineMillis,
+  refundTime,
 
--- | Test fixture data for TwoPartyEscrow benchmark
-module TwoPartyEscrow.Fixture where
+  -- * Buyer Fixture Data
+  buyerKeyHash,
+  buyerKeyHashBytes,
 
-import Plinth.Decoder.Named.TH (deriveLayoutFor)
-import PlutusLedgerApi.Data.V3 hiding (Datum)
+  -- * Seller Fixture Data
+  sellerKeyHash,
+  sellerKeyHashBytes,
+) where
+
+import PlutusLedgerApi.Data.V3 hiding (tokenName)
 import PlutusTx (makeIsDataIndexed)
 import PlutusTx.Builtins.HasOpaque (stringToBuiltinByteStringHex)
-import Prelude hiding (State)
+import Prelude
 
 --------------------------------------------------------------------------------
 -- Escrow Parameters -----------------------------------------------------------
@@ -47,7 +57,7 @@ buyerKeyHash = PubKeyHash buyerKeyHashBytes
 buyerKeyHashBytes :: BuiltinByteString
 buyerKeyHashBytes =
   stringToBuiltinByteStringHex
-    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 --------------------------------------------------------------------------------
 -- Seller Fixture Data ---------------------------------------------------------
@@ -60,58 +70,13 @@ sellerKeyHash = PubKeyHash sellerKeyHashBytes
 sellerKeyHashBytes :: BuiltinByteString
 sellerKeyHashBytes =
   stringToBuiltinByteStringHex
-    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
---------------------------------------------------------------------------------
--- Script Address ---------------------------------------------------------------
+-- | The protocol's thread-token name (ASCII bytes 657363726f77).
+tokenName :: TokenName
+tokenName = TokenName "escrow"
 
--- | Script hash of the escrow validator.
-scriptHash :: ScriptHash
-scriptHash =
-  ScriptHash "1111111111111111111111111111111111111111111111111111111111"
+-- | The deposit records only its last valid millisecond.
+data EscrowDatum = EscrowDatum {depositTime :: POSIXTime}
 
-{- | The escrow script's own payment credential. Escrow-input recognition ties
-to this (ignoring any staking part) so an unrelated script UTxO of the same
-amount cannot stand in for the deposit.
--}
-scriptCredential :: Credential
-scriptCredential = ScriptCredential scriptHash
-
--- | Standard script address for UPLC validators
-scriptAddr :: Address
-scriptAddr = Address scriptCredential Nothing
-
---------------------------------------------------------------------------------
--- Datum Types for State Management --------------------------------------------
-
--- | Escrow state transitions for proper state machine validation
-data State
-  = -- | Initial state after buyer deposits funds
-    Deposited
-  | -- | Seller has accepted payment (final state)
-    Accepted
-  | -- | Buyer has reclaimed funds (final state)
-    Refunded
-
--- | Complete escrow datum containing state and timing information
-data Datum = Datum
-  { escrowState :: State
-  -- ^ Current state of the escrow
-  , depositTime :: POSIXTime
-  -- ^ When the deposit was made (for deadline calculations)
-  }
-
--- | Initial datum state when escrow is first created
-initialEscrowDatum :: POSIXTime -> Datum
-initialEscrowDatum depositTime =
-  Datum {escrowState = Deposited, depositTime = depositTime}
-
--- PlutusTx instances for serialization
-makeIsDataIndexed
-  ''State
-  [('Deposited, 0), ('Accepted, 1), ('Refunded, 2)]
-makeIsDataIndexed ''Datum [('Datum, 0)]
-
--- The 'FieldAt' layout of 'Datum', derived from its record fields. See
--- "Plinth.Decoder.Named.TH".
-$(deriveLayoutFor ''Datum)
+makeIsDataIndexed ''EscrowDatum [('EscrowDatum, 0)]

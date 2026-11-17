@@ -79,3 +79,25 @@ Missing destination directories are created automatically.
    refresh `metrics.json`.
 4. Open a PR against UPLC-CAPE with the new `.uplc`, updated
    `metrics.json`, and the matching `source/README.md` commit pointer.
+
+## Two-party escrow revision 2
+
+This escrow branch implements the thread-token contract from
+[UPLC-CAPE issue 272](https://github.com/IntersectMBO/UPLC-CAPE/issues/272).
+One script handles both minting and spending: minting redeemer 0 creates a
+75 ADA escrow with one `escrow` token; redeemer 1 or 2 burns that token.
+Spending redeemer 1 pays the seller, while redeemer 2 refunds the buyer
+strictly after the deposit time plus 1,800,000 milliseconds.
+
+The inline datum is `Constr 0 [I depositTime]`, where depositTime is the
+finite deposit validity upper bound minus one. The script reads its own
+hash from the minting purpose or the spending input; no script address is
+compiled into it. Address checks compare payment credentials, payments
+sum all receiver outputs, and extra staking credentials or assets do not
+change the protocol rules.
+
+Use the compiler and build invocation pinned on this branch. The escrow
+changes retain its existing plugin options and inliner budgets; they do
+not retune the compiler. Local output directory suffixes such as
+`_monadic`, `_builtincasing` and `_preview` remain build-specific and may
+differ from the corresponding CAPE submission directory.
