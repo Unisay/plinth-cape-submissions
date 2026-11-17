@@ -33,7 +33,7 @@ jobs:
         with:
           repository: Unisay/plinth-cape-submissions
           # Updated only after the corresponding tools commit exists.
-          ref: 81c86a145cd7b3693c373bc72ccd011071c29d6f
+          ref: ed0d8933c78278d86bfeef1168db18edae5fb53e
           path: tools
           persist-credentials: false
 
@@ -43,12 +43,6 @@ jobs:
       - name: Prepare branch profile
         id: profile
         run: python3 tools/ci/check.py prepare --branch "$SOURCE_BASE" --source source >> "$GITHUB_OUTPUT"
-
-      - name: Restore Cabal store
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
-        with:
-          path: ~/.cabal/store
-          key: ${{ runner.os }}-${{ steps.profile.outputs.cache_key }}
 
       - name: Install Nix
         uses: cachix/install-nix-action@3dc140bfc76c49fbd4dd958429132e3746bcb086 # v31
