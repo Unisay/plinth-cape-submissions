@@ -10,8 +10,10 @@
 -- | Test fixture data for TwoPartyEscrow benchmark
 module TwoPartyEscrow.Fixture (
   -- * Escrow Parameters
+  EscrowDatum (..),
+  tokenName,
   escrowPrice,
-  escrowDeadlineSeconds,
+  escrowDeadlineMillis,
   refundTime,
 
   -- * Buyer Fixture Data
@@ -21,16 +23,6 @@ module TwoPartyEscrow.Fixture (
   -- * Seller Fixture Data
   sellerKeyHash,
   sellerKeyHashBytes,
-
-  -- * Script Address
-  scriptHash,
-  scriptCredential,
-  scriptAddr,
-
-  -- * Datum Types for State Management
-  EscrowState (..),
-  EscrowDatum (..),
-  initialEscrowDatum,
 ) where
 
 import PlutusLedgerApi.Data.V3
@@ -45,13 +37,13 @@ import Prelude
 escrowPrice :: Lovelace
 escrowPrice = Lovelace 75000000
 
--- | Escrow deadline in seconds (30 minutes)
-escrowDeadlineSeconds :: Integer
-escrowDeadlineSeconds = 1800
+-- | Escrow deadline: 30 minutes, in milliseconds like every 'POSIXTime'.
+escrowDeadlineMillis :: Integer
+escrowDeadlineMillis = 1800000
 
 -- | Refund time in POSIXTime (based on deadline)
 refundTime :: POSIXTime
-refundTime = POSIXTime escrowDeadlineSeconds
+refundTime = POSIXTime escrowDeadlineMillis
 
 --------------------------------------------------------------------------------
 -- Buyer Fixture Data ----------------------------------------------------------
@@ -64,7 +56,7 @@ buyerKeyHash = PubKeyHash buyerKeyHashBytes
 buyerKeyHashBytes :: BuiltinByteString
 buyerKeyHashBytes =
   stringToBuiltinByteStringHex
-    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 --------------------------------------------------------------------------------
 -- Seller Fixture Data ---------------------------------------------------------
@@ -77,54 +69,13 @@ sellerKeyHash = PubKeyHash sellerKeyHashBytes
 sellerKeyHashBytes :: BuiltinByteString
 sellerKeyHashBytes =
   stringToBuiltinByteStringHex
-    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
---------------------------------------------------------------------------------
--- Script Address ---------------------------------------------------------------
+-- | The protocol's thread-token name (ASCII bytes 657363726f77).
+tokenName :: TokenName
+tokenName = TokenName "escrow"
 
--- | Script hash of the escrow validator.
-scriptHash :: ScriptHash
-scriptHash =
-  ScriptHash "1111111111111111111111111111111111111111111111111111111111"
+-- | The deposit records only its last valid millisecond.
+data EscrowDatum = EscrowDatum {depositTime :: POSIXTime}
 
-{- | The escrow script's own payment credential. Escrow-input recognition ties
-to this (ignoring any staking part) so an unrelated script UTxO of the same
-amount cannot stand in for the deposit.
--}
-scriptCredential :: Credential
-scriptCredential = ScriptCredential scriptHash
-
--- | Standard script address for UPLC validators
-scriptAddr :: Address
-scriptAddr = Address scriptCredential Nothing
-
---------------------------------------------------------------------------------
--- Datum Types for State Management --------------------------------------------
-
--- | Escrow state transitions for proper state machine validation
-data EscrowState
-  = -- | Initial state after buyer deposits funds
-    Deposited
-  | -- | Seller has accepted payment (final state)
-    Accepted
-  | -- | Buyer has reclaimed funds (final state)
-    Refunded
-
--- | Complete escrow datum containing state and timing information
-data EscrowDatum = EscrowDatum
-  { escrowState :: EscrowState
-  -- ^ Current state of the escrow
-  , depositTime :: POSIXTime
-  -- ^ When the deposit was made (for deadline calculations)
-  }
-
--- | Initial datum state when escrow is first created
-initialEscrowDatum :: POSIXTime -> EscrowDatum
-initialEscrowDatum depositTime =
-  EscrowDatum {escrowState = Deposited, depositTime = depositTime}
-
--- PlutusTx instances for serialization
-makeIsDataIndexed
-  ''EscrowState
-  [('Deposited, 0), ('Accepted, 1), ('Refunded, 2)]
 makeIsDataIndexed ''EscrowDatum [('EscrowDatum, 0)]
