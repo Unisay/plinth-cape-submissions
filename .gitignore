@@ -13,3 +13,4 @@ result-*
 *.code-workspace
 .direnv
 .local
+ci/__pycache__/

@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "base": "main",
+  "outputs": {
+    "default": {
+      "submissions/ecd/Plinth_1.71.0.0_Unisay/ecd.uplc": "60c120641a12019f9e63faecb039de9fe4d247dcec30337a2259cfc0698de430",
+      "submissions/factorial_naive_recursion/Plinth_1.71.0.0_Unisay/factorial_naive_recursion.uplc": "ebeb578958c0acf5fb04a29aa38b8a3fc3d4bb3d669a39950c9d30763ca81035",
+      "submissions/fibonacci/Plinth_1.71.0.0_Unisay/fibonacci.uplc": "583ccee6e862d01830fc11740b4300bee26937ddefd71f4e6cffde39912b7218",
+      "submissions/fibonacci_naive_recursion/Plinth_1.71.0.0_Unisay/fibonacci_naive_recursion.uplc": "f4c94712f9d83262fdcf6c7fe9a882ebf2cbc671d8d58a7769d27f11b6c6d29e",
+      "submissions/htlc/Plinth_1.71.0.0_Unisay/htlc.uplc": "7d57c317848c293d41d1660848fc1f8d283e42723bc4baaa361c46bb91d064a1",
+      "submissions/linear_vesting/Plinth_1.71.0.0_Unisay/linear_vesting.uplc": "3b57ab97ea77e15971457e6c0eaa65824185179a11f4cf0fadc296a4e958e8ad",
+      "submissions/two_party_escrow/Plinth_1.71.0.0_Unisay/two_party_escrow.uplc": "00f8bced7795859b7520ba7bfbfe063a2c17d089b9dd8671589e76cd50267a9f"
+    }
+  }
+}

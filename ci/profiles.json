@@ -1,0 +1,272 @@
+{
+  "schema": 1,
+  "cape": {
+    "repository": "https://github.com/IntersectMBO/UPLC-CAPE",
+    "revision": "b6820b3649d5106306f139a76eb0fd1c43dccfe4",
+    "tests_path": "scenarios/two_party_escrow/cape-tests.json",
+    "tests_sha256": "43a389015489acc583c45949fd537865cc1b5d9a54495dc0acefe1880a136143"
+  },
+  "branches": {
+    "main": {
+      "builds": [
+        {
+          "name": "default",
+          "arguments": [
+            "run",
+            "plinth-submissions"
+          ]
+        }
+      ],
+      "escrow_revision": 1
+    },
+    "plinth-1.45": {
+      "builds": [
+        {
+          "name": "default",
+          "arguments": [
+            "run",
+            "plinth-submissions"
+          ]
+        },
+        {
+          "name": "preview",
+          "arguments": [
+            "--project-file=cabal.project.preview",
+            "run",
+            "--flags=preview",
+            "plinth-submissions-preview"
+          ]
+        }
+      ],
+      "escrow_revision": 2
+    },
+    "plinth-1.45-escrow-30min": {
+      "builds": [
+        {
+          "name": "default",
+          "arguments": [
+            "run",
+            "plinth-submissions"
+          ]
+        },
+        {
+          "name": "preview",
+          "arguments": [
+            "--project-file=cabal.project.preview",
+            "run",
+            "--flags=preview",
+            "plinth-submissions-preview"
+          ]
+        }
+      ],
+      "escrow_revision": 1
+    },
+    "plinth-1.45-plain-escrow-30min": {
+      "builds": [
+        {
+          "name": "default",
+          "arguments": [
+            "run",
+            "plinth-submissions"
+          ]
+        },
+        {
+          "name": "preview",
+          "arguments": [
+            "--project-file=cabal.project.preview",
+            "run",
+            "--flags=preview",
+            "plinth-submissions-preview"
+          ]
+        }
+      ],
+      "escrow_revision": 2
+    },
+    "plinth-1.61": {
+      "builds": [
+        {
+          "name": "default",
+          "arguments": [
+            "run",
+            "plinth-submissions"
+          ]
+        },
+        {
+          "name": "preview",
+          "arguments": [
+            "--project-file=cabal.project.preview",
+            "run",
+            "--flags=preview",
+            "plinth-submissions-preview"
+          ]
+        }
+      ],
+      "escrow_revision": 2
+    },
+    "plinth-1.61-escrow-30min": {
+      "builds": [
+        {
+          "name": "default",
+          "arguments": [
+            "run",
+            "plinth-submissions"
+          ]
+        },
+        {
+          "name": "preview",
+          "arguments": [
+            "--project-file=cabal.project.preview",
+            "run",
+            "--flags=preview",
+            "plinth-submissions-preview"
+          ]
+        }
+      ],
+      "escrow_revision": 1
+    },
+    "plinth-1.64": {
+      "builds": [
+        {
+          "name": "default",
+          "arguments": [
+            "run",
+            "plinth-submissions"
+          ]
+        },
+        {
+          "name": "preview",
+          "arguments": [
+            "run",
+            "--flags=preview",
+            "plinth-submissions"
+          ]
+        }
+      ],
+      "escrow_revision": 1
+    },
+    "plinth-1.64-escrow-30min": {
+      "builds": [
+        {
+          "name": "default",
+          "arguments": [
+            "run",
+            "plinth-submissions"
+          ]
+        },
+        {
+          "name": "preview",
+          "arguments": [
+            "run",
+            "--flags=preview",
+            "plinth-submissions"
+          ]
+        }
+      ],
+      "escrow_revision": 2
+    },
+    "plinth-1.64-plain-escrow-30min": {
+      "builds": [
+        {
+          "name": "default",
+          "arguments": [
+            "run",
+            "plinth-submissions"
+          ]
+        },
+        {
+          "name": "preview",
+          "arguments": [
+            "run",
+            "--flags=preview",
+            "plinth-submissions"
+          ]
+        }
+      ],
+      "escrow_revision": 2
+    },
+    "plinth-1.65": {
+      "builds": [
+        {
+          "name": "default",
+          "arguments": [
+            "run",
+            "plinth-submissions"
+          ]
+        },
+        {
+          "name": "preview",
+          "arguments": [
+            "run",
+            "--flags=preview",
+            "plinth-submissions"
+          ]
+        }
+      ],
+      "escrow_revision": 1
+    },
+    "plinth-1.65-asdata-escrow-30min": {
+      "builds": [
+        {
+          "name": "default",
+          "arguments": [
+            "run",
+            "plinth-submissions"
+          ]
+        },
+        {
+          "name": "preview",
+          "arguments": [
+            "run",
+            "--flags=preview",
+            "plinth-submissions"
+          ]
+        }
+      ],
+      "escrow_revision": 2
+    },
+    "plinth-1.65-escrow-30min": {
+      "builds": [
+        {
+          "name": "default",
+          "arguments": [
+            "run",
+            "plinth-submissions"
+          ]
+        },
+        {
+          "name": "preview",
+          "arguments": [
+            "run",
+            "--flags=preview",
+            "plinth-submissions"
+          ]
+        }
+      ],
+      "escrow_revision": 2
+    },
+    "plinth-1.67": {
+      "builds": [
+        {
+          "name": "default",
+          "arguments": [
+            "run",
+            "plinth-submissions"
+          ]
+        }
+      ],
+      "escrow_revision": 2
+    },
+    "plinth-1.71": {
+      "builds": [
+        {
+          "name": "default",
+          "arguments": [
+            "run",
+            "plinth-submissions"
+          ]
+        }
+      ],
+      "escrow_revision": 2
+    }
+  }
+}
