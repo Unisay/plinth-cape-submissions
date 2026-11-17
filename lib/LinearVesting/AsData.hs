@@ -27,7 +27,17 @@ module LinearVesting.AsData (
   linearVestingValidatorCode,
 ) where
 
-import LinearVesting.Fixture (VestingDatum (..), VestingRedeemer (..))
+import LinearVesting.Fixture (
+  VestingRedeemer (..),
+  asset,
+  beneficiary,
+  firstUnlockAfter,
+  installments,
+  periodEnd,
+  periodStart,
+  totalQty,
+ )
+import LinearVesting.Fixture qualified as Vesting
 import PlutusLedgerApi.Data.V3
 import PlutusLedgerApi.V1.Data.Value (valueOf)
 import PlutusLedgerApi.V3.Data.Contexts (
@@ -50,7 +60,7 @@ Redeemer constants:
   - PartialUnlock = 0() (withdraw proportional tokens)
   - FullUnlock    = 1() (withdraw all after period ends)
 
-The validator reads VestingDatum from the ScriptInfo datum, not baked-in constants.
+The validator reads Vesting.Datum from the ScriptInfo datum, not baked-in constants.
 All vesting parameters (beneficiary, asset, schedule) come from the datum.
 -}
 linearVestingValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
@@ -69,7 +79,7 @@ linearVestingValidator scriptContextData =
     redeemer :: VestingRedeemer
     redeemer = unsafeFromBuiltinData (getRedeemer (scriptContextRedeemer ctx))
 
-    datum :: VestingDatum
+    datum :: Vesting.Datum
     datum = spendingDatum (scriptContextScriptInfo ctx)
 
 --------------------------------------------------------------------------------
@@ -77,81 +87,83 @@ linearVestingValidator scriptContextData =
 
 -- | Validates partial unlock: proportional withdrawal during vesting period.
 {-# INLINEABLE validatePartialUnlock #-}
-validatePartialUnlock :: ScriptContext -> VestingDatum -> BuiltinUnit
-validatePartialUnlock ctx VestingDatum
-                            { beneficiary
-                            , vestingAsset
-                            , totalVestingQty
-                            , vestingPeriodStart
-                            , vestingPeriodEnd
-                            , firstUnlockPossibleAfter
-                            , totalInstallments
-                            } =
-  if
-    | not signed ->
-        traceError "Missing beneficiary signature"
-    | lessThanEqualsInteger currentTime firstUnlockPossibleAfter ->
-        traceError "Unlock not permitted until firstUnlockPossibleAfter time"
-    | lessThanEqualsInteger newRemainingQty 0 ->
-        traceError "Zero remaining assets not allowed"
-    | lessThanEqualsInteger oldRemainingQty newRemainingQty ->
-        traceError "Remaining asset is not decreasing"
-    | not (equalsInteger expectedRemainingQty newRemainingQty) ->
-        traceError "Mismatched remaining asset"
-    | inputDatum /= outputDatum ->
-        traceError "Datum Modification Prohibited"
-    | not (equalsInteger (countScriptInputs txInfo scriptHash) 1) ->
-        traceError "Double satisfaction"
-    | otherwise -> unitval
-  where
-    txInfo = scriptContextTxInfo ctx
+validatePartialUnlock :: ScriptContext -> Vesting.Datum -> BuiltinUnit
+validatePartialUnlock
+  ctx
+  Vesting.Datum
+    { beneficiary
+    , asset
+    , totalQty
+    , periodStart
+    , periodEnd
+    , firstUnlockAfter
+    , installments
+    } =
+    if
+      | not signed ->
+          traceError "Missing beneficiary signature"
+      | lessThanEqualsInteger currentTime firstUnlockAfter ->
+          traceError "Unlock not permitted until firstUnlockAfter time"
+      | lessThanEqualsInteger newRemainingQty 0 ->
+          traceError "Zero remaining assets not allowed"
+      | lessThanEqualsInteger oldRemainingQty newRemainingQty ->
+          traceError "Remaining asset is not decreasing"
+      | not (equalsInteger expectedRemainingQty newRemainingQty) ->
+          traceError "Mismatched remaining asset"
+      | inputDatum /= outputDatum ->
+          traceError "Datum Modification Prohibited"
+      | not (equalsInteger (countScriptInputs txInfo scriptHash) 1) ->
+          traceError "Double satisfaction"
+      | otherwise -> unitval
+    where
+      txInfo = scriptContextTxInfo ctx
 
-    -- Beneficiary signature check
-    beneficiaryHash = extractPubKeyHash beneficiary
-    signed = txSignedBy txInfo (PubKeyHash beneficiaryHash)
+      -- Beneficiary signature check
+      beneficiaryHash = extractPubKeyHash beneficiary
+      signed = txSignedBy txInfo (PubKeyHash beneficiaryHash)
 
-    -- Time extraction from valid range lower bound
-    POSIXTime currentTime = lowerBoundTime (txInfoValidRange txInfo)
+      -- Time extraction from valid range lower bound
+      POSIXTime currentTime = lowerBoundTime (txInfoValidRange txInfo)
 
-    -- Find own input and continuing output
-    !ownInput = case findOwnInput ctx of
-      Just txInInfo -> txInInfoResolved txInInfo
-      Nothing -> traceError "Own input not found"
+      -- Find own input and continuing output
+      !ownInput = case findOwnInput ctx of
+        Just txInInfo -> txInInfoResolved txInInfo
+        Nothing -> traceError "Own input not found"
 
-    continuingOuts = getContinuingOutputs ctx
-    !continuingOut = case List.uncons continuingOuts of
-      Just (out, _) -> out
-      Nothing -> traceError "Own output not found"
+      continuingOuts = getContinuingOutputs ctx
+      !continuingOut = case List.uncons continuingOuts of
+        Just (out, _) -> out
+        Nothing -> traceError "Own output not found"
 
-    -- Asset quantities
-    (cs, tn) = vestingAsset
-    oldRemainingQty = valueOf (txOutValue ownInput) cs tn
-    newRemainingQty = valueOf (txOutValue continuingOut) cs tn
+      -- Asset quantities
+      (cs, tn) = asset
+      oldRemainingQty = valueOf (txOutValue ownInput) cs tn
+      newRemainingQty = valueOf (txOutValue continuingOut) cs tn
 
-    -- Vesting schedule calculation
-    vestingPeriodLength = vestingPeriodEnd - vestingPeriodStart
-    vestingTimeRemaining = vestingPeriodEnd - currentTime
-    timeBetweenTwoInstallments = divCeil vestingPeriodLength totalInstallments
-    futureInstallments = divCeil vestingTimeRemaining timeBetweenTwoInstallments
-    expectedRemainingQty =
-      divCeil (futureInstallments * totalVestingQty) totalInstallments
+      -- Vesting schedule calculation
+      vestingPeriodLength = periodEnd - periodStart
+      vestingTimeRemaining = periodEnd - currentTime
+      timeBetweenTwoInstallments = divCeil vestingPeriodLength installments
+      futureInstallments = divCeil vestingTimeRemaining timeBetweenTwoInstallments
+      expectedRemainingQty =
+        divCeil (futureInstallments * totalQty) installments
 
-    -- Datum preservation check
-    inputDatum = txOutDatum ownInput
-    outputDatum = txOutDatum continuingOut
+      -- Datum preservation check
+      inputDatum = txOutDatum ownInput
+      outputDatum = txOutDatum continuingOut
 
-    -- Script hash for double satisfaction check
-    scriptHash = extractScriptHash ownInput
+      -- Script hash for double satisfaction check
+      scriptHash = extractScriptHash ownInput
 
 -- | Validates full unlock: complete withdrawal after vesting period ends.
 {-# INLINEABLE validateFullUnlock #-}
-validateFullUnlock :: ScriptContext -> VestingDatum -> BuiltinUnit
-validateFullUnlock ctx VestingDatum {beneficiary, vestingPeriodEnd} =
+validateFullUnlock :: ScriptContext -> Vesting.Datum -> BuiltinUnit
+validateFullUnlock ctx Vesting.Datum {beneficiary, periodEnd} =
   if
     | not (txSignedBy txInfo (PubKeyHash beneficiaryHash)) ->
         traceError "Missing beneficiary signature"
-    | lessThanEqualsInteger currentTime vestingPeriodEnd ->
-        traceError "Unlock not permitted until vestingPeriodEnd time"
+    | lessThanEqualsInteger currentTime periodEnd ->
+        traceError "Unlock not permitted until periodEnd time"
     | otherwise -> unitval
   where
     txInfo = scriptContextTxInfo ctx
@@ -201,9 +213,9 @@ countScriptInputs txInfo scriptHash =
     0
     (txInfoInputs txInfo)
 
--- | Extract VestingDatum from SpendingScript info.
+-- | Extract Vesting.Datum from SpendingScript info.
 {-# INLINEABLE spendingDatum #-}
-spendingDatum :: ScriptInfo -> VestingDatum
+spendingDatum :: ScriptInfo -> Vesting.Datum
 spendingDatum = \case
   SpendingScript _ (Just datum) -> unsafeFromBuiltinData (getDatum datum)
   _ -> traceError "Expected SpendingScript with datum"

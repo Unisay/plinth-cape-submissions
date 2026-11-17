@@ -100,9 +100,11 @@ the public contract of the submission.
 ## Workflow for landing a change
 
 1. Edit `lib/<Scenario>.hs` (and/or its `Fixture.hs`).
-2. `cabal run plinth-submissions` (and the `--flags=preview` variant if the
-   scenario has a preview submission) — confirm new `.uplc` lands in the
-   sibling UPLC-CAPE checkout.
+2. `cabal run plinth-submissions` (and the `--flags=preview` variant where the
+   target row needs the casing build) — confirm new `.uplc` lands in the
+   sibling UPLC-CAPE checkout. UPLC-CAPE retired the preview track, so the
+   casing build no longer has a `*_preview` row of its own; the target
+   row's `source/README.md` says which build it wants.
 3. In UPLC-CAPE: `cape submission measure --all` to refresh `metrics.json`.
 4. Open a PR against UPLC-CAPE with the new `.uplc`, updated `metrics.json`,
    and the matching `source/README.md` commit pointer back to this repo.

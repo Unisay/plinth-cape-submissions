@@ -55,16 +55,8 @@ module LinearVesting (
   linearVestingValidator,
 ) where
 
-import LinearVesting.Fixture (VestingDatum)
+import LinearVesting.Fixture qualified as Vesting
 import Plinth.Decoder.Named (
-  FieldAt,
-  N0,
-  N1,
-  N2,
-  N3,
-  N4,
-  N5,
-  N6,
   atField,
   field,
   fields,
@@ -116,7 +108,6 @@ import Plinth.Validator qualified as V
 import PlutusLedgerApi.Data.V3 (
   Address,
   Credential,
-  CurrencySymbol,
   Datum (getDatum),
   LowerBound,
   POSIXTime (getPOSIXTime),
@@ -124,7 +115,6 @@ import PlutusLedgerApi.Data.V3 (
   PubKeyHash,
   ScriptContext,
   ScriptInfo,
-  TokenName,
   TxInInfo,
   TxInfo,
  )
@@ -132,40 +122,6 @@ import PlutusTx qualified
 import PlutusTx.Code (CompiledCode)
 import PlutusTx.Data.List (List)
 import PlutusTx.Prelude
-
---------------------------------------------------------------------------------
--- Layout ------------------------------------------------------------------------
-
--- The 'FieldAt' layout of 'VestingDatum' (Constr tag 0), one tag per record
--- selector; declared here, next to the only consumer.
-
-data VestingBeneficiary
-
-data VestingAsset
-
-data VestingTotalQty
-
-data VestingPeriodStart
-
-data VestingPeriodEnd
-
-data VestingFirstUnlockAfter
-
-data VestingTotalInstallments
-
-instance FieldAt VestingBeneficiary VestingDatum N0 Address
-
-instance FieldAt VestingAsset VestingDatum N1 (CurrencySymbol, TokenName)
-
-instance FieldAt VestingTotalQty VestingDatum N2 Integer
-
-instance FieldAt VestingPeriodStart VestingDatum N3 Integer
-
-instance FieldAt VestingPeriodEnd VestingDatum N4 Integer
-
-instance FieldAt VestingFirstUnlockAfter VestingDatum N5 Integer
-
-instance FieldAt VestingTotalInstallments VestingDatum N6 Integer
 
 --------------------------------------------------------------------------------
 -- Validator -------------------------------------------------------------------
@@ -208,14 +164,14 @@ validatePartialUnlock txInfo scriptInfo = V.do
     , firstUnlockAfter
     , installments
     ) <-
-    walkRaw @VestingDatum datumBd N.do
-      b <- field @VestingBeneficiary
-      a <- field @VestingAsset
-      q <- field @VestingTotalQty
-      s <- field @VestingPeriodStart
-      e <- field @VestingPeriodEnd
-      u <- field @VestingFirstUnlockAfter
-      n <- field @VestingTotalInstallments
+    walkRaw @Vesting.Datum datumBd N.do
+      b <- field @Vesting.Beneficiary
+      a <- field @Vesting.Asset
+      q <- field @Vesting.TotalQty
+      s <- field @Vesting.PeriodStart
+      e <- field @Vesting.PeriodEnd
+      u <- field @Vesting.FirstUnlockAfter
+      n <- field @Vesting.Installments
       yield (b, a, q, s, e, u, n)
   (validRange, signatories) <-
     walk txInfo (fields @(TxInfoValidRange, TxInfoSignatories))
@@ -264,8 +220,8 @@ validateFullUnlock txInfo scriptInfo = V.do
   datumJust <- walk scriptInfo (field @SpendingScriptDatum)
   datum <- walk datumJust (field @JustValue)
   (beneficiary, periodEnd) <-
-    walkRaw @VestingDatum (getDatum (decode datum))
-      $ fields @(VestingBeneficiary, VestingPeriodEnd)
+    walkRaw @Vesting.Datum (getDatum (decode datum))
+      $ fields @(Vesting.Beneficiary, Vesting.PeriodEnd)
   (validRange, signatories) <-
     walk txInfo (fields @(TxInfoValidRange, TxInfoSignatories))
   validate "Missing beneficiary signature" do

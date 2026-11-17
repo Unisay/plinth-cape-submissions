@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-missing-export-lists #-}
 {-# OPTIONS_GHC -fno-full-laziness #-}
 {-# OPTIONS_GHC -fno-ignore-interface-pragmas #-}
 {-# OPTIONS_GHC -fno-omit-interface-pragmas #-}
@@ -7,25 +8,15 @@
 {-# OPTIONS_GHC -fno-unbox-small-strict-fields #-}
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 
+-- No explicit export list: 'deriveLayoutFor' generates the field-layout tag
+-- types (see "Plinth.Decoder.Named.TH"), whose names cannot be enumerated in
+-- an export list here, so the whole module is exported instead.
+
 -- | Test fixture data for LinearVesting benchmark
-module LinearVesting.Fixture (
-  -- * Datum and redeemer types
-  VestingDatum (..),
-  VestingRedeemer (..),
+module LinearVesting.Fixture where
 
-  -- * Beneficiary Fixture Data
-  beneficiaryKeyHash,
-  beneficiaryKeyHashBytes,
-
-  -- * Vesting Asset
-  vestingCurrencySymbol,
-  vestingTokenName,
-
-  -- * Script Address
-  scriptAddr,
-) where
-
-import PlutusLedgerApi.Data.V3
+import Plinth.Decoder.Named.TH (deriveLayoutFor)
+import PlutusLedgerApi.Data.V3 hiding (Datum)
 import PlutusTx (makeIsDataIndexed)
 import PlutusTx.Builtins.HasOpaque (stringToBuiltinByteStringHex)
 import Prelude
@@ -34,14 +25,14 @@ import Prelude
 -- Datum and Redeemer Types ----------------------------------------------------
 
 -- | Vesting parameters stored on-chain as inline datum
-data VestingDatum = VestingDatum
+data Datum = Datum
   { beneficiary :: Address
-  , vestingAsset :: (CurrencySymbol, TokenName)
-  , totalVestingQty :: Integer
-  , vestingPeriodStart :: Integer
-  , vestingPeriodEnd :: Integer
-  , firstUnlockPossibleAfter :: Integer
-  , totalInstallments :: Integer
+  , asset :: (CurrencySymbol, TokenName)
+  , totalQty :: Integer
+  , periodStart :: Integer
+  , periodEnd :: Integer
+  , firstUnlockAfter :: Integer
+  , installments :: Integer
   }
 
 -- | Redeemer actions for the vesting validator
@@ -49,8 +40,12 @@ data VestingRedeemer
   = PartialUnlock
   | FullUnlock
 
-makeIsDataIndexed ''VestingDatum [('VestingDatum, 0)]
+makeIsDataIndexed ''Datum [('Datum, 0)]
 makeIsDataIndexed ''VestingRedeemer [('PartialUnlock, 0), ('FullUnlock, 1)]
+
+-- The 'FieldAt' layout of 'Datum', derived from its record fields (index from
+-- source order). See "Plinth.Decoder.Named.TH".
+$(deriveLayoutFor ''Datum)
 
 --------------------------------------------------------------------------------
 -- Beneficiary Fixture Data ----------------------------------------------------
