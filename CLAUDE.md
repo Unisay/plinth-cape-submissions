@@ -59,33 +59,33 @@ modules still compile, but `Main` does not write them.
 
 ## Branch model (important)
 
-Seven long-lived branches, each producing byte-identical UPLC for a specific
-Plinth release that's referenced from UPLC-CAPE's per-scenario
-`source/README.md`:
+Keep one long-lived branch per compiler version, plus `main` for development.
+UPLC-CAPE's per-scenario `source/README.md` and `source_commit_hash` select
+the exact commit and build invocation that reproduce each published artifact:
 
 - `main` — Plinth **1.71.0.0**. No preview variant, no asdata variants (see
   above).
-- `plinth-1.71` — the branch UPLC-CAPE's 1.71 rows name; same history as
-  `main` until `main` moves on.
-- `plinth-1.67` — frozen at 1.67.0.0; contains both 1.67 pins, `bf320db` and
-  `f042fed` (the escrow deadline fix below).
-- `plinth-1.65` — frozen at 1.65.0.0; preview is a cabal flag, writing to
+- `plinth-1.71` — Plinth 1.71.0.0; the branch UPLC-CAPE's 1.71 rows name.
+  Its escrow is revision 2; `main` still has revision 1.
+- `plinth-1.67` — Plinth 1.67.0.0.
+- `plinth-1.65` — Plinth 1.65.0.0; preview is a cabal flag, writing to
   `*_Unisay_preview/`.
-- `plinth-1.64` — frozen at 1.64.0.0; same shape, but the preview build writes
+- `plinth-1.64` — Plinth 1.64.0.0; same shape, but the preview build writes
   to `*_Unisay_builtincasing/`.
-- `plinth-1.45` — frozen at 1.45.0.0; has a parallel `lib/Preview/` tree.
-- `plinth-1.61` — frozen at 1.61.0.0; uses `cabal.project.preview` +
+- `plinth-1.45` — Plinth 1.45.0.0; has a parallel `lib/Preview/` tree.
+- `plinth-1.61` — Plinth 1.61.0.0; uses `cabal.project.preview` +
   `plinth-submissions-preview` executable.
 
 Build invocations differ per branch — consult the branch's README before
-running. **Do not "modernize" the older branches**: their job is to keep
-reproducing the exact UPLC that UPLC-CAPE pins by commit hash.
+running. Keep each branch's compiler configuration and pinned commits intact.
+Branch tips can evolve and need not emit the published UPLC; check out the
+row's exact commit to reproduce it.
 
-**Escrow side branches.** Below 1.67, the `two_party_escrow` rows pin
-`plinth-<ver>[-<variant>]-escrow-30min`, not the frozen branch. Each is one
-commit on the row's old pin that changes the refund deadline from 1800 to
-1800000 ms (UPLC-CAPE#252); the frozen branches keep 1800. Never delete or
-rebase these branches: a fresh clone cannot check out an unreachable pin.
+Escrow revision 2 lives in the compiler-version branches. Consolidate the
+former `*-escrow-30min` branches with merge commits, preserving every CAPE
+source pin as an ancestor of its version branch. Delete those side branches
+only after CAPE's branch labels point to the version branches. Never squash,
+rebase, or force-push away a published pin.
 
 **Do not infer a submission's directory from the build that produced it.**
 UPLC-CAPE retired the preview track and deleted every `*_Unisay_preview` and
