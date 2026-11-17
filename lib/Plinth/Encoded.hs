@@ -23,12 +23,17 @@ module Plinth.Encoded (
   anyE,
   findE,
   countE,
+  foldE,
+
+  -- * Lookup in encoded maps
+  lookupE,
 ) where
 
 import PlutusTx.AsData.Internal (wrapUnsafeDataAsConstr)
 import PlutusTx.Builtins (BuiltinString, equalsData, matchList, matchList')
 import PlutusTx.Builtins.Internal (BuiltinData, BuiltinInteger)
 import PlutusTx.Builtins.Internal qualified as BI
+import PlutusTx.Data.AssocMap (Map)
 import PlutusTx.Data.List (List)
 import PlutusTx.Eq qualified as PlutusTx
 import PlutusTx.IsData.Class (
@@ -95,3 +100,25 @@ countE p (Encoded d) = go 0 (BI.unsafeDataAsList d)
     go acc xs = matchList' xs acc \h t ->
       go (if p (Encoded h) then acc + 1 else acc) t
 {-# INLINEABLE countE #-}
+
+-- | Left fold over an encoded list's elements.
+foldE :: (b -> Encoded a -> b) -> b -> Encoded (List a) -> b
+foldE f z (Encoded d) = go z (BI.unsafeDataAsList d)
+  where
+    go acc xs = matchList' xs acc \h t -> go (f acc (Encoded h)) t
+{-# INLINEABLE foldE #-}
+
+--------------------------------------------------------------------------------
+-- Lookup in encoded maps -------------------------------------------------------
+
+{- | Look up a key in an encoded map: one 'equalsData' per entry, no decode.
+Continuation-passing instead of 'Maybe', so no sum value ever materialises:
+@missing@ is returned when the key is absent, otherwise @found@ receives the
+value still 'Encoded'.
+-}
+lookupE :: Encoded k -> r -> (Encoded v -> r) -> Encoded (Map k v) -> r
+lookupE (Encoded k) missing found (Encoded d) = go (BI.unsafeDataAsMap d)
+  where
+    go xs = matchList' xs missing \h t ->
+      if equalsData k (BI.fst h) then found (Encoded (BI.snd h)) else go t
+{-# INLINEABLE lookupE #-}

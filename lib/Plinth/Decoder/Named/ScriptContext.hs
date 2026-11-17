@@ -30,6 +30,9 @@ module Plinth.Decoder.Named.ScriptContext (
 
   -- * Generic constructor-payload tags
   JustValue,
+  PairFst,
+  PairSnd,
+  OutputDatumDatum,
 
   -- * V3 'TxInfo' field tags
   TxInfoInputs,
@@ -53,6 +56,8 @@ module Plinth.Decoder.Named.ScriptContext (
   TxInInfoOutRef,
   TxInInfoResolved,
   TxOutAddress,
+  TxOutValue,
+  TxOutDatum,
   AddressCredential,
   PubKeyCredentialHash,
 
@@ -62,6 +67,9 @@ module Plinth.Decoder.Named.ScriptContext (
   BoundExtended,
   BoundClosure,
   FiniteValue,
+
+  -- * 'Value' helpers
+  assetAmount,
 ) where
 
 import Plinth.Decoder.Named (
@@ -83,9 +91,11 @@ import Plinth.Decoder.Named (
   N8,
   N9,
  )
+import Plinth.Encoded (Encoded (Encoded), decode, lookupE)
 import PlutusLedgerApi.Data.V3 (
   Address,
   Credential,
+  CurrencySymbol,
   Datum,
   DatumHash,
   Extended,
@@ -93,6 +103,7 @@ import PlutusLedgerApi.Data.V3 (
   Lovelace,
   LowerBound,
   MintValue,
+  OutputDatum,
   POSIXTime,
   POSIXTimeRange,
   ProposalProcedure,
@@ -101,6 +112,7 @@ import PlutusLedgerApi.Data.V3 (
   ScriptContext,
   ScriptInfo,
   ScriptPurpose,
+  TokenName,
   TxCert,
   TxId,
   TxInInfo,
@@ -108,12 +120,13 @@ import PlutusLedgerApi.Data.V3 (
   TxOut,
   TxOutRef,
   UpperBound,
+  Value,
   Vote,
   Voter,
  )
 import PlutusTx.Data.AssocMap (Map)
 import PlutusTx.Data.List (List)
-import PlutusTx.Prelude (Bool, Maybe)
+import PlutusTx.Prelude (Bool, Integer, Maybe)
 
 -- V3 'ScriptContext' -----------------------------------------------------------
 
@@ -155,6 +168,24 @@ invariant (e.g. an inline datum a spending script was invoked with).
 data JustValue
 
 instance FieldAt JustValue (Maybe a) N0 a
+
+-- | The first component of an encoded 2-tuple (Constr tag 0 of @(a, b)@).
+data PairFst
+
+-- | The second component of an encoded 2-tuple.
+data PairSnd
+
+instance FieldAt PairFst (a, b) N0 a
+
+instance FieldAt PairSnd (a, b) N1 b
+
+{- | The payload of an inline @OutputDatum@ (Constr tag 2 of 'OutputDatum').
+COMMITS to the constructor without verifying the tag — check 'tagOf' first
+when inline presence is not an invariant.
+-}
+data OutputDatumDatum
+
+instance FieldAt OutputDatumDatum OutputDatum N0 Datum
 
 -- V3 'TxInfo' -------------------------------------------------------------------
 
@@ -230,6 +261,10 @@ data TxInInfoResolved
 
 data TxOutAddress
 
+data TxOutValue
+
+data TxOutDatum
+
 data AddressCredential
 
 {- | The hash payload of a @PubKeyCredential@ (Constr tag 0 of 'Credential').
@@ -243,6 +278,10 @@ instance FieldAt TxInInfoOutRef TxInInfo N0 TxOutRef
 instance FieldAt TxInInfoResolved TxInInfo N1 TxOut
 
 instance FieldAt TxOutAddress TxOut N0 Address
+
+instance FieldAt TxOutValue TxOut N1 Value
+
+instance FieldAt TxOutDatum TxOut N2 OutputDatum
 
 instance FieldAt AddressCredential Address N0 Credential
 
@@ -276,3 +315,21 @@ instance FieldAt BoundClosure (LowerBound a) N1 Bool
 instance FieldAt BoundClosure (UpperBound a) N1 Bool
 
 instance FieldAt FiniteValue (Extended a) N0 a
+
+-- 'Value' -------------------------------------------------------------------------
+
+{- | The quantity of the given asset in a 'Value': two raw map lookups
+('equalsData' on the keys, see 'lookupE'), decoding only the final amount;
+@0@ when the asset is absent. That a 'Value' is transparently its nested
+@Map CurrencySymbol (Map TokenName Integer)@ is wire-layout knowledge, which
+is why this lives with the layout instances.
+-}
+assetAmount ::
+  Encoded Value -> Encoded CurrencySymbol -> Encoded TokenName -> Integer
+assetAmount (Encoded v) cs tn =
+  lookupE
+    cs
+    0
+    (lookupE tn 0 (decode @Integer))
+    (Encoded v :: Encoded (Map CurrencySymbol (Map TokenName Integer)))
+{-# INLINE assetAmount #-}
