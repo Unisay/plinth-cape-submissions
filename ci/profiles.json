@@ -35,34 +35,6 @@
       "compiler": "ghc-9.6.7",
       "plutus_version": "1.45.0.0"
     },
-    "plinth-1.45-escrow-30min": {
-      "builds": [
-        {
-          "name": "default",
-          "arguments": [
-            "run",
-            "plinth-submissions"
-          ]
-        }
-      ],
-      "escrow_revision": 1,
-      "compiler": "ghc-9.6.7",
-      "plutus_version": "1.45.0.0"
-    },
-    "plinth-1.45-plain-escrow-30min": {
-      "builds": [
-        {
-          "name": "default",
-          "arguments": [
-            "run",
-            "plinth-submissions"
-          ]
-        }
-      ],
-      "escrow_revision": 2,
-      "compiler": "ghc-9.6.7",
-      "plutus_version": "1.45.0.0"
-    },
     "plinth-1.61": {
       "builds": [
         {
@@ -79,67 +51,7 @@
       "compiler": "ghc-9.6.7",
       "plutus_version": "1.61.0.0"
     },
-    "plinth-1.61-escrow-30min": {
-      "builds": [
-        {
-          "name": "preview",
-          "arguments": [
-            "--project-file=cabal.project.preview",
-            "run",
-            "--flags=preview",
-            "plinth-submissions-preview"
-          ]
-        }
-      ],
-      "escrow_revision": 1,
-      "compiler": "ghc-9.6.7",
-      "plutus_version": "1.61.0.0"
-    },
     "plinth-1.64": {
-      "builds": [
-        {
-          "name": "default",
-          "arguments": [
-            "run",
-            "plinth-submissions"
-          ]
-        },
-        {
-          "name": "preview",
-          "arguments": [
-            "run",
-            "--flags=preview",
-            "plinth-submissions"
-          ]
-        }
-      ],
-      "escrow_revision": 1,
-      "compiler": "ghc-9.6.7",
-      "plutus_version": "1.64.0.0"
-    },
-    "plinth-1.64-escrow-30min": {
-      "builds": [
-        {
-          "name": "default",
-          "arguments": [
-            "run",
-            "plinth-submissions"
-          ]
-        },
-        {
-          "name": "preview",
-          "arguments": [
-            "run",
-            "--flags=preview",
-            "plinth-submissions"
-          ]
-        }
-      ],
-      "escrow_revision": 2,
-      "compiler": "ghc-9.6.7",
-      "plutus_version": "1.64.0.0"
-    },
-    "plinth-1.64-plain-escrow-30min": {
       "builds": [
         {
           "name": "default",
@@ -162,50 +74,6 @@
       "plutus_version": "1.64.0.0"
     },
     "plinth-1.65": {
-      "builds": [
-        {
-          "name": "default",
-          "arguments": [
-            "run",
-            "plinth-submissions"
-          ]
-        },
-        {
-          "name": "preview",
-          "arguments": [
-            "run",
-            "--flags=preview",
-            "plinth-submissions"
-          ]
-        }
-      ],
-      "escrow_revision": 1,
-      "compiler": "ghc-9.6.7",
-      "plutus_version": "1.65.0.0"
-    },
-    "plinth-1.65-asdata-escrow-30min": {
-      "builds": [
-        {
-          "name": "default",
-          "arguments": [
-            "run",
-            "plinth-submissions"
-          ]
-        },
-        {
-          "name": "preview",
-          "arguments": [
-            "run",
-            "--flags=preview",
-            "plinth-submissions"
-          ]
-        }
-      ],
-      "escrow_revision": 2,
-      "compiler": "ghc-9.6.7",
-      "plutus_version": "1.65.0.0"
-    },
-    "plinth-1.65-escrow-30min": {
       "builds": [
         {
           "name": "default",

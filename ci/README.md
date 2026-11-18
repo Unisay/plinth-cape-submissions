@@ -2,10 +2,10 @@
 
 A green `UPLC / Build and reproduce UPLC` check means that the PR merge checkout
 builds in its branch's pinned Nix shell, and the complete set of emitted `.uplc`
-paths and raw byte hashes matches `ci/expected-outputs.json`. On the nine
-revision-2 escrow bases it also means every emitted escrow passed the pinned
-CAPE suite. It does not update or certify CAPE metrics. The five legacy bases
-check build/reproduction only; revision-2 tests do not apply to their contracts.
+paths and raw byte hashes matches `ci/expected-outputs.json`. On the six
+compiler-version branches it also means every emitted revision-2 escrow passed
+the pinned CAPE suite. It does not update or certify CAPE metrics. `main` checks
+build/reproduction only; revision-2 tests do not apply to its revision-1 escrow.
 Confirm the exact required-check name on the first hosted run.
 
 `profiles.json` records only the invocations CAPE uses for each base: 1.45 uses
@@ -59,8 +59,8 @@ an explicit profile and manifest are added.
 For initial rollout after user approval:
 
 1. Publish/review the main CI PR and obtain a real hosted check.
-2. On each of the 13 other bases, build and record that base's manifest; add the
-   thin caller as a small separate PR, without compiler/source changes. Every
+2. On each of the six compiler-version branches, build and record its
+   manifest; add the thin caller as a small separate PR, without compiler/source changes. Every
    overlay PR must pass its actual hosted run. Representative local runs do not
    establish coverage for the remaining bases.
 3. After all callers exist, confirm the stable context name and request separate
