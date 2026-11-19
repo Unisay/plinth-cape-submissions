@@ -1,10 +1,10 @@
 {
-  "schema": 1,
+  "schema": 2,
   "cape": {
-    "repository": "https://github.com/IntersectMBO/UPLC-CAPE",
     "revision": "b6820b3649d5106306f139a76eb0fd1c43dccfe4",
-    "tests_path": "scenarios/two_party_escrow/cape-tests.json",
-    "tests_sha256": "43a389015489acc583c45949fd537865cc1b5d9a54495dc0acefe1880a136143"
+    "suites": {
+      "two_party_escrow": "43a389015489acc583c45949fd537865cc1b5d9a54495dc0acefe1880a136143"
+    }
   },
   "branches": {
     "main": {
@@ -17,9 +17,9 @@
           ]
         }
       ],
-      "escrow_revision": 1,
       "compiler": "ghc-9.6.7",
-      "plutus_version": "1.71.0.0"
+      "plutus_version": "1.71.0.0",
+      "suites": []
     },
     "plinth-1.45": {
       "builds": [
@@ -31,9 +31,11 @@
           ]
         }
       ],
-      "escrow_revision": 2,
       "compiler": "ghc-9.6.7",
-      "plutus_version": "1.45.0.0"
+      "plutus_version": "1.45.0.0",
+      "suites": [
+        "two_party_escrow"
+      ]
     },
     "plinth-1.61": {
       "builds": [
@@ -47,9 +49,11 @@
           ]
         }
       ],
-      "escrow_revision": 2,
       "compiler": "ghc-9.6.7",
-      "plutus_version": "1.61.0.0"
+      "plutus_version": "1.61.0.0",
+      "suites": [
+        "two_party_escrow"
+      ]
     },
     "plinth-1.64": {
       "builds": [
@@ -69,9 +73,11 @@
           ]
         }
       ],
-      "escrow_revision": 2,
       "compiler": "ghc-9.6.7",
-      "plutus_version": "1.64.0.0"
+      "plutus_version": "1.64.0.0",
+      "suites": [
+        "two_party_escrow"
+      ]
     },
     "plinth-1.65": {
       "builds": [
@@ -91,9 +97,11 @@
           ]
         }
       ],
-      "escrow_revision": 2,
       "compiler": "ghc-9.6.7",
-      "plutus_version": "1.65.0.0"
+      "plutus_version": "1.65.0.0",
+      "suites": [
+        "two_party_escrow"
+      ]
     },
     "plinth-1.67": {
       "builds": [
@@ -105,9 +113,11 @@
           ]
         }
       ],
-      "escrow_revision": 2,
       "compiler": "ghc-9.6.7",
-      "plutus_version": "1.67.0.0"
+      "plutus_version": "1.67.0.0",
+      "suites": [
+        "two_party_escrow"
+      ]
     },
     "plinth-1.71": {
       "builds": [
@@ -119,9 +129,11 @@
           ]
         }
       ],
-      "escrow_revision": 2,
       "compiler": "ghc-9.6.7",
-      "plutus_version": "1.71.0.0"
+      "plutus_version": "1.71.0.0",
+      "suites": [
+        "two_party_escrow"
+      ]
     }
   }
 }

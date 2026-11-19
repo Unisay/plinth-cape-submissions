@@ -1,72 +1,51 @@
 # UPLC checks
 
-A green `UPLC / Build and reproduce UPLC` check means that the PR merge checkout
-builds in its branch's pinned Nix shell, and the complete set of emitted `.uplc`
-paths and raw byte hashes matches `ci/expected-outputs.json`. On the six
-compiler-version branches it also means every emitted revision-2 escrow passed
-the pinned CAPE suite. It does not update or certify CAPE metrics. `main` checks
-build/reproduction only; revision-2 tests do not apply to its revision-1 escrow.
-Confirm the exact required-check name on the first hosted run.
+For each build in the base branch's profile, CI runs the submission generator
+in the branch's pinned Nix shell. It checks the GHC and Plutus versions in the
+resolved Cabal plan and compares every emitted `.uplc` path and its SHA-256
+against the branch's `benchmarks/expected-outputs.json`. The hashes cover the
+raw generator output, including whitespace. A missing, extra or changed file
+fails the check.
 
-`profiles.json` records only the invocations CAPE uses for each base: 1.45 uses
-the default project, 1.61 uses the separate preview project, and 1.64/1.65 use
-both flag variants. All emissions of each selected invocation are checked,
-including sibling artifacts. Older preview projects, CPP flags and local output
-suffixes are preserved. All builds run sequentially
-under one Cabal-index lock. The resolved Cabal plan must contain the declared
-GHC and Plutus release, including the plugin; shell-global package precedence
-cannot silently change the compiler used. The job preserves shared Nix/Cabal
-stores and consumes public Cachix downloads without a write token. It does not
-prime or write caches. A hosted cold run depends on public substitutes for GHC
-and the Plutus libraries: local store hits do not establish availability. Cold
-hosted performance remains a rollout gate.
+`benchmarks/profiles.json` in the pinned tools checkout declares the build
+commands and CAPE suites for each base branch. For each configured suite, CI
+checks out the pinned CAPE commit, verifies the suite file's hash, builds
+`measure` and runs the suite against every matching output of each build.
+A missing output or failed evaluation fails the check. The job archives build
+logs, generated files and evaluation results.
 
-Run from a clean source checkout after committing changes to compiler inputs or
-Haskell. Put results outside that checkout:
+Run the same check locally from a clean source checkout. Use a fresh results
+directory outside the checkout:
 
 ```sh
-python3 /path/to/ci/check.py record --branch main --source "$PWD" --results /tmp/uplc-record
 python3 /path/to/ci/check.py verify --branch main --source "$PWD" --results /tmp/uplc-verify
 ```
 
-Recording is forbidden in CI. To update an existing manifest intentionally, add
-`--replace`, inspect the complete manifest diff, and commit it with the source
-change. Normal CI only verifies. A missing manifest fails. New or removed paths,
-renamed binders and changed plugin output all require a reviewed manifest update.
-Hashes describe raw generator bytes; no formatter rewrites legacy emissions.
+For a profile with suites, also pass `--cape /path/to/cape` pointing to a clean
+checkout at the configured commit. Builds and evaluations run sequentially
+under the same Cabal-index lock.
 
-For a revision-2 base, also pass `--cape /path/to/cape`. That checkout must be
-clean at the exact durable main commit in `profiles.json`, and the escrow test
-hash must match. The runner builds its `.#measure` and keeps logs/metrics beside
-the emitted artifacts. The staging destination is a private temporary tree,
-not the CAPE checkout. A failed build, comparison or evaluator exits nonzero.
+When a source or compiler change intentionally changes the output, commit the
+build inputs first, then record the new baseline locally:
 
-## Distribution
+```sh
+python3 /path/to/ci/check.py record --replace --branch main --source "$PWD" --results /tmp/uplc-record
+```
 
-The reusable workflow and tools live on `main`. Its workflow checks out the
-immutable tools commit named in that file, independently of the caller source.
-Tool updates are committed first, then the workflow's tools SHA is updated in
-a second commit. Main's caller uses the local reusable workflow so its initial
-PR can exercise it. Other bases use the common caller template below.
+Review the manifest diff and include it in the same PR. Omit `--replace` when
+creating a branch's first manifest. CI only verifies committed baselines.
 
-Each historical base receives its own output manifest and the same thin caller.
-The Haskell, Cabal and flake files remain on that branch's compiler line. Future
-CI behavior for old branches follows the central workflow on `main`; the
-compiler/toolchain and expected outputs remain branch-specific. Do not merge
-main's source history into older bases to install CI. Unknown bases fail until
-an explicit profile and manifest are added.
+## Using the workflow on another branch
 
-For initial rollout after user approval:
+The reusable workflow on `main` checks out its tools and profiles by commit.
+When changing them, commit the changes first, then point the workflow at that
+commit. The caller on `main` uses the local workflow so a PR can exercise its
+own changes.
 
-1. Publish/review the main CI PR and obtain a real hosted check.
-2. On each of the six compiler-version branches, build and record its
-   manifest; add the thin caller as a small separate PR, without compiler/source changes. Every
-   overlay PR must pass its actual hosted run. Representative local runs do not
-   establish coverage for the remaining bases.
-3. After all callers exist, confirm the stable context name and request separate
-   approval before setting required checks or branch protection.
-
-No push, PR, repository setting change or cache write is implied by these steps.
+For a compiler branch, add its profile to the central configuration, record
+the manifest on the compiler branch and add the caller below. Each branch
+builds with its own Cabal and flake files. Hosted runs use public Cachix
+substitutes and may build dependencies from source on a cache miss.
 
 ```yaml
 name: UPLC CI

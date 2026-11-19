@@ -13,7 +13,7 @@ import sys
 import time
 
 
-CONFIG = Path(__file__).with_name("profiles.json")
+CONFIG = Path(__file__).resolve().parents[1] / "benchmarks/profiles.json"
 
 
 class CheckError(Exception):
@@ -38,7 +38,7 @@ def read_json(path):
 
 def configuration(branch):
     config = read_json(CONFIG)
-    require(config.get("schema") == 1, "Unsupported CI profile schema")
+    require(config.get("schema") == 2, "Unsupported CI profile schema")
     require(branch in config["branches"], f"No CI profile for base {branch!r}; add one explicitly")
     return config, config["branches"][branch]
 
@@ -112,14 +112,20 @@ def command(arguments, cwd, log, env=None):
     return round(time.monotonic() - started, 3)
 
 
-def cape_measure(config, checkout, results):
-    require(checkout is not None, "Revision-2 escrow requires --cape pointing to the pinned CAPE checkout")
+def cape_measure(config, suites, checkout, results):
+    require(checkout is not None, "Configured suites require --cape pointing to the pinned CAPE checkout")
     revision = config["revision"]
     require(isinstance(revision, str) and re.fullmatch(r"[0-9a-f]{40}", revision),
             "CAPE must be pinned to its durable main-branch merge commit before CI publication")
     require(git(checkout, "rev-parse", "HEAD") == revision, "CAPE checkout is at the wrong commit")
     require(not git(checkout, "status", "--porcelain", "--untracked-files=all"), "CAPE checkout must be clean")
-    require(digest(checkout / config["tests_path"]) == config["tests_sha256"], "CAPE escrow test hash mismatch")
+    tests = {}
+    for scenario in suites:
+        require(re.fullmatch(r"[A-Za-z0-9_-]+", scenario) and scenario in config["suites"],
+                f"Unknown CAPE suite: {scenario}")
+        suite = checkout / "scenarios" / scenario / "cape-tests.json"
+        require(digest(suite) == config["suites"][scenario], f"CAPE test hash mismatch: {scenario}")
+        tests[scenario] = suite
     log = results / "build-measure.log"
     # Keep stdout machine-readable while storing all diagnostics beside the artifacts.
     with log.open("w") as output:
@@ -131,7 +137,7 @@ def cape_measure(config, checkout, results):
     require(len(paths) == 1 and Path(paths[0]).is_absolute(), "Unexpected measure build output")
     executable = Path(paths[0]) / "bin/measure"
     require(executable.is_file(), "Built measure executable is missing")
-    return executable, checkout / config["tests_path"]
+    return executable, tests
 
 
 def run(args):
@@ -144,7 +150,7 @@ def run(args):
     require(not results.exists() or not any(results.iterdir()), "Results directory must be empty")
     results.mkdir(parents=True, exist_ok=True)
     args.results_owned = True
-    manifest_path = source / "ci/expected-outputs.json"
+    manifest_path = source / "benchmarks/expected-outputs.json"
     expected = None
     if args.mode == "record":
         require(not os.environ.get("CI") and not os.environ.get("GITHUB_ACTIONS"),
@@ -161,7 +167,8 @@ def run(args):
     lock_path = Path("/tmp") / f"plinth-cape-cabal-index-{os.getuid()}.lock"
     with lock_path.open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        evaluator = cape_measure(config["cape"], args.cape.resolve() if args.cape else None, results) if profile["escrow_revision"] == 2 else None
+        evaluator = (cape_measure(config["cape"], profile["suites"], args.cape.resolve() if args.cape else None, results)
+                     if profile["suites"] else None)
         for build in profile["builds"]:
             name = build["name"]
             stage = results / name
@@ -177,15 +184,17 @@ def run(args):
             if expected is not None:
                 compare(expected[name], actual[name])
             if evaluator:
-                escrows = [path for path in actual[name] if "/two_party_escrow/" in path]
-                require(escrows, f"No revision-2 escrow was emitted by {name}")
-                for relative in escrows:
-                    artifact = stage / relative
-                    label = name + "-" + artifact.parent.name
-                    command([str(evaluator[0]), "-i", str(artifact), "-t", str(evaluator[1]),
-                             "-o", str(results / f"metrics-{label}.json")],
-                            source, results / f"measure-{label}.log")
-                    tested.append(name + "/" + relative)
+                measure, suites = evaluator
+                for scenario, suite in suites.items():
+                    artifacts = [path for path in actual[name] if PurePosixPath(path).parts[1] == scenario]
+                    require(artifacts, f"No artifact for CAPE suite {scenario} in {name}")
+                    for relative in artifacts:
+                        output = results / "evaluations" / name / relative
+                        output.parent.mkdir(parents=True, exist_ok=True)
+                        command([str(measure), "-i", str(stage / relative), "-t", str(suite),
+                                 "-o", str(output.with_suffix(".json"))],
+                                source, output.with_suffix(".log"))
+                        tested.append(name + "/" + relative)
             print(f"{name}: {len(actual[name])} artifacts, {timings[name]}s", flush=True)
     if args.mode == "record":
         manifest_path.parent.mkdir(exist_ok=True)
@@ -194,8 +203,7 @@ def run(args):
                "mode": args.mode, "build_seconds": timings, "outputs": actual,
                "total_seconds": round(time.monotonic() - started, 3),
                "resolved_toolchains": toolchains,
-               "escrow_revision": profile["escrow_revision"], "escrows_tested": tested,
-               "semantics": "pinned revision-2 suite" if tested else "legacy: reproduction only"}
+               "evaluated_outputs": tested}
     (results / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     return summary
 
@@ -211,13 +219,11 @@ def main():
     args = parser.parse_args()
     try:
         if args.mode == "prepare":
-            config, _ = configuration(args.branch)
-            print("cape_revision=" + (config["cape"]["revision"] or ""))
-            print("escrow_revision=" + str(config["branches"][args.branch]["escrow_revision"]))
+            config, profile = configuration(args.branch)
+            print("cape_revision=" + (config["cape"]["revision"] if profile["suites"] else ""))
             return
         require(args.results is not None, "--results is required")
-        summary = run(args)
-        print(summary["semantics"])
+        run(args)
     except (CheckError, OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"CI failed: {error}", file=sys.stderr)
         if getattr(args, "results_owned", False):

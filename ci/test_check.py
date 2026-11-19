@@ -64,15 +64,16 @@ class CIContract(unittest.TestCase):
         self.assertTrue((self.root / "build.log").exists())
 
     def test_wrong_cape_revision_and_test_hash_fail_before_build(self):
-        tests = self.root / "tests.json"
+        tests = self.root / "scenarios/example/cape-tests.json"
+        tests.parent.mkdir(parents=True)
         tests.write_text("[]")
-        config = {"revision": "a" * 40, "tests_path": "tests.json", "tests_sha256": "b" * 64}
+        config = {"revision": "a" * 40, "suites": {"example": "b" * 64}}
         with patch.object(ci, "git", return_value="c" * 40):
             with self.assertRaisesRegex(ci.CheckError, "wrong commit"):
-                ci.cape_measure(config, self.root, self.root)
+                ci.cape_measure(config, ["example"], self.root, self.root)
         with patch.object(ci, "git", side_effect=["a" * 40, ""]):
             with self.assertRaisesRegex(ci.CheckError, "hash mismatch"):
-                ci.cape_measure(config, self.root, self.root)
+                ci.cape_measure(config, ["example"], self.root, self.root)
 
     def test_ci_cannot_record_its_own_expectations(self):
         source = self.root / "source"
@@ -81,7 +82,7 @@ class CIContract(unittest.TestCase):
         with patch.dict(os.environ, {"CI": "true"}):
             with self.assertRaisesRegex(ci.CheckError, "forbidden in CI"):
                 ci.run(args)
-        self.assertFalse((source / "ci/expected-outputs.json").exists())
+        self.assertFalse((source / "benchmarks/expected-outputs.json").exists())
 
     def test_wrong_resolved_plugin_or_ghc_fails(self):
         path = self.root / "dist-newstyle/cache/plan.json"
