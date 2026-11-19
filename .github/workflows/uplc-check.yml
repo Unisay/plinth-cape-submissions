@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   check:
-    name: Build and reproduce UPLC
+    name: Build and validate UPLC
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
@@ -33,7 +33,7 @@ jobs:
         with:
           repository: Unisay/plinth-cape-submissions
           # Updated only after the corresponding tools commit exists.
-          ref: 1708f1da39851cf36c6041891ee65baac93c5f65
+          ref: 59a5df97c425f67e62590916f81d93bd558bd266
           path: tools
           persist-credentials: false
 
@@ -65,7 +65,7 @@ jobs:
           path: cape
           persist-credentials: false
 
-      - name: Build and verify declared outputs
+      - name: Build and validate generated programs
         run: |
           python3 tools/ci/check.py verify --branch "$SOURCE_BASE" \
             --source source --results "$RUNNER_TEMP/uplc-ci-results" --cape cape
