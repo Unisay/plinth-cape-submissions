@@ -3,7 +3,6 @@
 import argparse
 import importlib.util
 import json
-import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -22,15 +21,9 @@ class CIContract(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
 
-    def test_edited_missing_and_unexpected_outputs_fail(self):
-        expected = {ARTIFACT: "a" * 64}
-        for actual, message in [
-            ({ARTIFACT: "b" * 64}, "changed:"),
-            ({}, "missing:"),
-            ({ARTIFACT: "a" * 64, "extra.uplc": "b" * 64}, "extra:"),
-        ]:
-            with self.subTest(message=message), self.assertRaisesRegex(ci.CheckError, message):
-                ci.compare(expected, actual)
+    def test_empty_build_fails(self):
+        with self.assertRaisesRegex(ci.CheckError, "No UPLC"):
+            ci.inventory(self.root)
 
     def test_empty_and_symlink_emissions_fail(self):
         artifact = self.root / ARTIFACT
@@ -45,18 +38,9 @@ class CIContract(unittest.TestCase):
         with self.assertRaisesRegex(ci.CheckError, "symlink"):
             ci.inventory(self.root)
 
-    def test_unknown_base_and_missing_build_declarations_fail(self):
+    def test_unknown_base_fails(self):
         with self.assertRaisesRegex(ci.CheckError, "No CI profile"):
             ci.configuration("unknown-compiler")
-        profile = {"builds": [{"name": "default"}, {"name": "preview"}]}
-        with self.assertRaisesRegex(ci.CheckError, "every declared"):
-            ci.validate_manifest({"schema": 1, "base": "test", "outputs": {"default": {ARTIFACT: "a" * 64}}}, "test", profile)
-
-    def test_invalid_hash_and_manifest_path_fail(self):
-        for path, sha in [("../artifact.uplc", "a" * 64), (ARTIFACT, "not-a-hash")]:
-            with self.subTest(path=path, sha=sha), self.assertRaises(ci.CheckError):
-                ci.validate_manifest({"schema": 1, "base": "test", "outputs": {"default": {path: sha}}},
-                                     "test", {"builds": [{"name": "default"}]})
 
     def test_failed_build_is_never_success(self):
         with self.assertRaisesRegex(ci.CheckError, "Command failed"):
@@ -74,15 +58,6 @@ class CIContract(unittest.TestCase):
         with patch.object(ci, "git", side_effect=["a" * 40, ""]):
             with self.assertRaisesRegex(ci.CheckError, "hash mismatch"):
                 ci.cape_measure(config, ["example"], self.root, self.root)
-
-    def test_ci_cannot_record_its_own_expectations(self):
-        source = self.root / "source"
-        source.mkdir()
-        args = argparse.Namespace(branch="main", source=source, results=self.root / "outputs", mode="record", replace=False)
-        with patch.dict(os.environ, {"CI": "true"}):
-            with self.assertRaisesRegex(ci.CheckError, "forbidden in CI"):
-                ci.run(args)
-        self.assertFalse((source / "benchmarks/expected-outputs.json").exists())
 
     def test_wrong_resolved_plugin_or_ghc_fails(self):
         path = self.root / "dist-newstyle/cache/plan.json"

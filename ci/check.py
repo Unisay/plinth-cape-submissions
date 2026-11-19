@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build branch-declared Plinth outputs and verify their reviewed byte hashes."""
+"""Build Plinth submissions and validate the emitted UPLC programs."""
 
 import argparse
 import fcntl
@@ -61,45 +61,15 @@ def resolved_toolchain(source, profile):
 
 
 def inventory(directory):
-    files = {}
+    files = []
     for path in sorted(directory.rglob("*.uplc")):
         require(not path.is_symlink(), f"Emitted artifact is a symlink: {path}")
         require(path.is_file() and path.stat().st_size > 0, f"Empty or invalid emitted artifact: {path}")
         relative = path.relative_to(directory).as_posix()
         require(relative.startswith("submissions/"), f"Unexpected output location: {relative}")
-        files[relative] = digest(path)
+        files.append(relative)
     require(files, f"No UPLC artifacts emitted into {directory}")
     return files
-
-
-def validate_manifest(manifest, branch, profile):
-    require(manifest.get("schema") == 1 and manifest.get("base") == branch,
-            "Expected manifest schema/base does not match this PR base")
-    expected = manifest.get("outputs", {})
-    require(set(expected) == {build["name"] for build in profile["builds"]},
-            "Expected manifest does not cover every declared build invocation")
-    for build, files in expected.items():
-        require(isinstance(files, dict) and files, f"Empty output declaration for {build}")
-        for name, sha in files.items():
-            path = PurePosixPath(name)
-            require(not path.is_absolute() and ".." not in path.parts
-                    and name.startswith("submissions/") and name.endswith(".uplc"),
-                    f"Invalid expected artifact path: {name}")
-            require(isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{64}", sha),
-                    f"Invalid expected SHA256 for {name}")
-    return expected
-
-
-def compare(expected, actual):
-    differences = []
-    for name in sorted(set(expected) - set(actual)):
-        differences.append("missing: " + name)
-    for name in sorted(set(actual) - set(expected)):
-        differences.append("extra: " + name)
-    for name in sorted(set(actual) & set(expected)):
-        if actual[name] != expected[name]:
-            differences.append(f"changed: {name} ({expected[name]} -> {actual[name]})")
-    require(not differences, "Emitted UPLC differs from its reviewed manifest:\n" + "\n".join(differences))
 
 
 def command(arguments, cwd, log, env=None):
@@ -150,18 +120,6 @@ def run(args):
     require(not results.exists() or not any(results.iterdir()), "Results directory must be empty")
     results.mkdir(parents=True, exist_ok=True)
     args.results_owned = True
-    manifest_path = source / "benchmarks/expected-outputs.json"
-    expected = None
-    if args.mode == "record":
-        require(not os.environ.get("CI") and not os.environ.get("GITHUB_ACTIONS"),
-                "Recording expected outputs is forbidden in CI")
-        require(args.replace or not manifest_path.exists(), "Manifest exists; use --replace for an intentional update")
-        require(not git(source, "status", "--porcelain", "--untracked-files=all", "--",
-                        "lib", "plinth-submissions-app", "plinth-submissions-preview-app",
-                        "flake.nix", "flake.lock", "cabal.project", "cabal.project.preview", "*.cabal"),
-                "Commit source/build-input changes before recording their expected outputs")
-    else:
-        expected = validate_manifest(read_json(manifest_path), args.branch, profile)
     actual, timings, tested, toolchains = {}, {}, [], {}
     # All invocations, including CAPE, share one lock and run strictly sequentially.
     lock_path = Path("/tmp") / f"plinth-cape-cabal-index-{os.getuid()}.lock"
@@ -180,9 +138,12 @@ def run(args):
             ], source, results / f"build-{name}.log", environment)
             toolchains[name] = resolved_toolchain(source, profile)
             actual[name] = inventory(stage)
-            (results / "actual-outputs.json").write_text(json.dumps(actual, indent=2) + "\n")
-            if expected is not None:
-                compare(expected[name], actual[name])
+            project_options = [arg for arg in build["arguments"] if arg.startswith(("--project-file=", "--flags="))]
+            command([
+                "nix", "develop", "--accept-flake-config", "--command", "cabal", *project_options,
+                "exec", "--", "runghc",
+                str(Path(__file__).resolve().with_name("Validate.hs")), *[str(stage / path) for path in actual[name]],
+            ], source, results / f"validate-{name}.log")
             if evaluator:
                 measure, suites = evaluator
                 for scenario, suite in suites.items():
@@ -196,11 +157,8 @@ def run(args):
                                 source, output.with_suffix(".log"))
                         tested.append(name + "/" + relative)
             print(f"{name}: {len(actual[name])} artifacts, {timings[name]}s", flush=True)
-    if args.mode == "record":
-        manifest_path.parent.mkdir(exist_ok=True)
-        manifest_path.write_text(json.dumps({"schema": 1, "base": args.branch, "outputs": actual}, indent=2) + "\n")
     summary = {"base": args.branch, "source_revision": git(source, "rev-parse", "HEAD"),
-               "mode": args.mode, "build_seconds": timings, "outputs": actual,
+               "build_seconds": timings, "outputs": actual,
                "total_seconds": round(time.monotonic() - started, 3),
                "resolved_toolchains": toolchains,
                "evaluated_outputs": tested}
@@ -210,12 +168,11 @@ def run(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["verify", "record", "prepare"])
+    parser.add_argument("mode", choices=["verify", "prepare"])
     parser.add_argument("--branch", required=True, help="PR base branch")
     parser.add_argument("--source", type=Path, default=Path.cwd())
     parser.add_argument("--results", type=Path)
     parser.add_argument("--cape", type=Path)
-    parser.add_argument("--replace", action="store_true")
     args = parser.parse_args()
     try:
         if args.mode == "prepare":

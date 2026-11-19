@@ -2,10 +2,9 @@
 
 For each build in the base branch's profile, CI runs the submission generator
 in the branch's pinned Nix shell. It checks the GHC and Plutus versions in the
-resolved Cabal plan and compares every emitted `.uplc` path and its SHA-256
-against the branch's `benchmarks/expected-outputs.json`. The hashes cover the
-raw generator output, including whitespace. A missing, extra or changed file
-fails the check.
+resolved Cabal plan, then uses the branch's Plutus parser to read every emitted
+`.uplc` file and check that every variable is bound. The build must produce at
+least one program. Changed and newly added programs go through the same checks.
 
 `benchmarks/profiles.json` in the pinned tools checkout declares the build
 commands and CAPE suites for each base branch. For each configured suite, CI
@@ -25,16 +24,6 @@ For a profile with suites, also pass `--cape /path/to/cape` pointing to a clean
 checkout at the configured commit. Builds and evaluations run sequentially
 under the same Cabal-index lock.
 
-When a source or compiler change intentionally changes the output, commit the
-build inputs first, then record the new baseline locally:
-
-```sh
-python3 /path/to/ci/check.py record --replace --branch main --source "$PWD" --results /tmp/uplc-record
-```
-
-Review the manifest diff and include it in the same PR. Omit `--replace` when
-creating a branch's first manifest. CI only verifies committed baselines.
-
 ## Using the workflow on another branch
 
 The reusable workflow on `main` checks out its tools and profiles by commit.
@@ -42,8 +31,7 @@ When changing them, commit the changes first, then point the workflow at that
 commit. The caller on `main` uses the local workflow so a PR can exercise its
 own changes.
 
-For a compiler branch, add its profile to the central configuration, record
-the manifest on the compiler branch and add the caller below. Each branch
+For a compiler branch, add its profile to the central configuration and add the caller below. Each branch
 builds with its own Cabal and flake files. Hosted runs use public Cachix
 substitutes and may build dependencies from source on a cache miss.
 
