@@ -33,7 +33,7 @@ jobs:
         with:
           repository: Unisay/plinth-cape-submissions
           # Updated only after the corresponding tools commit exists.
-          ref: 51666bb2c7e6c619d15b3109906cf89a4293ffb4
+          ref: 1708f1da39851cf36c6041891ee65baac93c5f65
           path: tools
           persist-credentials: false
 
@@ -57,7 +57,7 @@ jobs:
           skipPush: true
 
       - name: Check out frozen CAPE suite
-        if: steps.profile.outputs.escrow_revision == '2'
+        if: steps.profile.outputs.cape_revision != ''
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           repository: IntersectMBO/UPLC-CAPE
