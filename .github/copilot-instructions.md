@@ -7,7 +7,7 @@ This repository contains Plinth (PlutusTx / Haskell) source code for the benchma
 The generator executable (`plinth-submissions`) compiles each scenario's `CompiledCode`, converts it from DeBruijn to named form, pretty-prints it with `prettyPlcClassic`, and writes it to:
 
 ```
-<CAPE_REPO>/submissions/<scenario>/Plinth_<ver>_Unisay[_builtincasing]/<file>.uplc
+<CAPE_REPO>/submissions/<scenario>/Plinth_<ver>_Unisay[_<variant>]/<file>.uplc
 ```
 
 There are **no automated tests** in this repo. Correctness is verified externally by UPLC-CAPE's `cape submission measure/verify` commands run against the committed `.uplc` files.
@@ -41,11 +41,9 @@ The `.envrc.local.template` file in the repo root is the versioned reference.
 ## Build commands (inside `nix develop`)
 
 ```sh
-# Production submission → Plinth_1.64.0.0_Unisay/
 cabal run plinth-submissions
 
-# Preview submission (BuiltinCasing datatypes) → Plinth_1.64.0.0_Unisay_builtincasing/
-cabal run --flags=preview plinth-submissions
+cabal run --flags=builtincasing plinth-submissions
 
 # Format all files (fourmolu, cabal-fmt, nixfmt, prettier, shfmt, pretty-uplc)
 treefmt
@@ -75,15 +73,6 @@ plinth-submissions-app/
 
 The `PlutusTx.compile` splices for `linearVestingValidator` and `htlcValidator` live in `plinth-submissions-app/Main.hs` rather than in their respective modules. This is a deliberate workaround for a PlutusTx plugin interaction first observed on the `plinth-1.45` branch. **Do not move these splices back into the validator modules** without confirming the generated UPLC is byte-for-byte identical.
 
-## The `preview` cabal flag
-
-The flag does two things in lockstep — **both must always be toggled together**:
-
-1. Passes `-fplugin-opt Plinth.Plugin:datatypes=BuiltinCasing` to the library.
-2. Defines the `PREVIEW` CPP macro in `plinth-submissions-app/Main.hs`, redirecting writes to the `*_builtincasing` submission directory.
-
-These are wired together in `plinth-cape-submissions.cabal`. Never set one without the other.
-
 ## Plinth plugin options (cabal `library` stanza)
 
 ```
@@ -97,17 +86,8 @@ These are wired together in `plinth-cape-submissions.cabal`. Never set one witho
 
 **These are part of the public contract of the submission.** Changing any option changes the compiled UPLC for every scenario and therefore invalidates every `metrics.json` in UPLC-CAPE that is pinned to a commit on this branch. Treat them as immutable unless a deliberate re-benchmarking is planned.
 
-## Branch model
-
-Three long-lived branches each produce byte-identical UPLC for a specific Plinth release:
-
-| Branch | Plinth version | Preview mechanism |
-|---|---|---|
-| `main` | 1.64.0.0 | `--flags=preview` cabal flag |
-| `plinth-1.45` | 1.45.0.0 | parallel `lib/Preview/` source tree |
-| `plinth-1.61` | 1.61.0.0 | `cabal.project.preview` + `plinth-submissions-preview` exe |
-
-**Do not "modernize" older branches.** Their sole job is to keep reproducing the exact UPLC that UPLC-CAPE pins by commit hash. Build invocations differ between branches — always consult the branch's `README.md` before running.
+Each compiler branch pins its own Plinth version. This branch builds with
+Plinth 1.64.0.0. Both invocations write directly to the CAPE rows they supply.
 
 ## Formatting conventions
 
@@ -125,7 +105,7 @@ Run `treefmt` before committing. Do not manually reformat files that are already
 ## Workflow for landing a change
 
 1. Edit `lib/<Scenario>.hs` (and/or `lib/<Scenario>/Fixture.hs`).
-2. Inside `nix develop` with `CAPE_REPO` set, run `cabal run plinth-submissions` to regenerate `.uplc` artefacts. Run with `--flags=preview` too if the scenario has a preview submission.
+2. Inside `nix develop` with `CAPE_REPO` set, run `cabal run plinth-submissions` to regenerate `.uplc` artefacts. Run the second build with `--flags=builtincasing` to generate its CAPE rows.
 3. Confirm the new `.uplc` files landed correctly in the sibling UPLC-CAPE checkout.
 4. In the UPLC-CAPE checkout, run `cape submission measure --all` to refresh `metrics.json`.
 5. Open a PR against UPLC-CAPE with the new `.uplc`, updated `metrics.json`, and a `source/README.md` commit pointer back to the commit in this repo.

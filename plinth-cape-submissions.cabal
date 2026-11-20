@@ -13,10 +13,8 @@ maintainer:    UPLC-CAPE Project
 category:      Blockchain
 license:       Apache-2.0
 
-flag preview
-  description:
-    Build with @datatypes=BuiltinCasing@ enabled; .uplc lands under a
-    @-builtin-casing@ submission directory instead of the production one.
+flag builtincasing
+  description: Compile the CAPE rows that use BuiltinCasing.
 
   default:     False
   manual:      True
@@ -82,7 +80,7 @@ common common-language
 -- @inline-callsite-growth@) is set with @OPTIONS_GHC@ pragmas in the
 -- scenario module itself — but those pragmas only reach the plugin if
 -- the @PlutusTx.compile@ splice lives in that same module. Toggling
--- the @preview@ flag selects the BuiltinCasing variant without a
+-- the @builtincasing@ flag selects the BuiltinCasing variant without a
 -- parallel source tree.
 library
   import:          common-language
@@ -122,18 +120,13 @@ library
     -fplugin-opt Plinth.Plugin:no-preserve-logging
     -fplugin-opt Plinth.Plugin:remove-trace
 
-  if flag(preview)
+  if flag(builtincasing)
     ghc-options: -fplugin-opt Plinth.Plugin:datatypes=BuiltinCasing
-    cpp-options: -DPREVIEW
+    cpp-options: -DBUILTIN_CASING
 
   hs-source-dirs:  lib
 
--- Plinth submissions generator. Writes one @.uplc@ per scenario into the
--- sibling UPLC-CAPE checkout (set @CAPE_REPO@ if it is not at
--- @../UPLC-CAPE@). With the @preview@ flag set, the @PREVIEW@ CPP define
--- redirects every write to the @-builtin-casing@ submission directory.
---   CAPE_REPO=../UPLC-CAPE cabal run plinth-submissions
---   CAPE_REPO=../UPLC-CAPE cabal --flags=preview run plinth-submissions
+-- Both builds write directly to the CAPE rows they supply.
 executable plinth-submissions
   import:         common-language
   main-is:        Main.hs
@@ -143,7 +136,7 @@ executable plinth-submissions
     , plutus-tx
     , plutus-tx-plugin
 
-  if flag(preview)
-    cpp-options: -DPREVIEW
+  if flag(builtincasing)
+    cpp-options: -DBUILTIN_CASING
 
   hs-source-dirs: plinth-submissions-app
