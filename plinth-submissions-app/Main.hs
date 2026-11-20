@@ -3,11 +3,7 @@
 {-# OPTIONS_GHC -fplugin PlutusTx.Plugin #-}
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:target-version=1.1.0 #-}
 
-{- | Generator for the production (Plinth 1.45) submission artefacts.
-Writes only the 1.45 @.uplc@ paths. The preview (Plinth 1.61) generator
-lives in @plinth-submissions-preview-app/Main.hs@ and uses a separate
-cabal project, so neither build can accidentally overwrite the other.
--}
+-- | Generate the Plinth 1.45 submissions.
 module Main (main) where
 
 import Prelude
@@ -28,10 +24,7 @@ import PlutusTx.Prelude (BuiltinUnit)
 import TwoPartyEscrow (twoPartyEscrowValidatorCode)
 import TwoPartyEscrow.Monadic qualified as TpeMonadic
 
--- Compile splices live here (not in HTLC.hs / LinearVesting.hs) as a workaround
--- for a PlutusTx plugin interaction: having @$$(compile ...)@ in the source
--- module without BuiltinCasing blocks cross-library recompilation with
--- BuiltinCasing in the corresponding Preview.* module.
+-- Keep these splices at the executable boundary to reproduce the published UPLC.
 linearVestingValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
 linearVestingValidatorCode = $$(PlutusTx.compile [||linearVestingValidator||])
 
