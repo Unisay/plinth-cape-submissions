@@ -13,7 +13,7 @@
 {-# OPTIONS_GHC -fno-unbox-strict-fields #-}
 
 -- Revision-1 budgets retained for each build; not re-swept.
-#ifdef PREVIEW
+#ifdef BUILTIN_CASING
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=12 #-}
 #else
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=27 #-}
