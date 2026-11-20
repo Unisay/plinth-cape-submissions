@@ -50,6 +50,8 @@ class CIContract(unittest.TestCase):
         with self.assertRaisesRegex(ci.CheckError, "No suite or exclusion"):
             ci.check_coverage(outputs, ["one"], {})
         ci.check_coverage(outputs, ["one"], {"two": "Older contract"})
+        with self.assertRaisesRegex(ci.CheckError, "excluded scenarios"):
+            ci.check_coverage(outputs, ["one", "two"], {"obsolete": "Older contract"})
         with self.assertRaisesRegex(ci.CheckError, "needs a reason"):
             ci.check_coverage(outputs, ["one"], {"two": ""})
 

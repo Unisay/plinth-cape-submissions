@@ -118,6 +118,8 @@ def check_coverage(outputs, suites, exclusions):
     require(not required.intersection(exclusions), "A required suite cannot also be excluded")
     missing = required - emitted
     require(not missing, f"No emitted artifact for configured suites: {sorted(missing)}")
+    stale = exclusions.keys() - emitted
+    require(not stale, f"No emitted artifact for excluded scenarios: {sorted(stale)}")
     uncovered = emitted - required - exclusions.keys()
     require(not uncovered, f"No suite or exclusion for emitted scenarios: {sorted(uncovered)}")
 
