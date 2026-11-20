@@ -16,14 +16,9 @@
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:remove-trace #-}
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:target-version=1.1.0 #-}
 
-module Factorial (factorialCode, factorial) where
+module Factorial (factorial) where
 
-import PlutusTx
 import PlutusTx.Prelude
-
--- | Compiled factorial function
-factorialCode :: CompiledCode (Integer -> Integer)
-factorialCode = $$(PlutusTx.compile [||factorial||])
 
 {-# INLINEABLE factorial #-}
 factorial :: Integer -> Integer

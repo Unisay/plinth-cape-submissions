@@ -27,21 +27,17 @@
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:target-version=1.1.0 #-}
 
 -- | Revision 2: the plain Data.V3 implementation of the thread-token escrow.
-module TwoPartyEscrow (twoPartyEscrowValidatorCode, twoPartyEscrowValidator) where
+module TwoPartyEscrow (twoPartyEscrowValidator) where
 
 import PlutusLedgerApi.Data.V3
 import PlutusLedgerApi.V1.Data.Value (lovelaceValueOf, valueOf)
 import PlutusLedgerApi.V3.Data.Contexts (txSignedBy)
-import PlutusTx
 import PlutusTx.Builtins (equalsData)
 import PlutusTx.Builtins.Internal qualified as BI
 import PlutusTx.Data.AssocMap qualified as Map
 import PlutusTx.Data.List qualified as List
 import PlutusTx.Prelude
 import TwoPartyEscrow.Fixture qualified as Escrow
-
-twoPartyEscrowValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
-twoPartyEscrowValidatorCode = $$(PlutusTx.compile [||twoPartyEscrowValidator||])
 
 {-# INLINEABLE twoPartyEscrowValidator #-}
 twoPartyEscrowValidator :: BuiltinData -> BuiltinUnit

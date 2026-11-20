@@ -7,12 +7,12 @@
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:target-version=1.1.0 #-}
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:datatypes=BuiltinCasing #-}
 
--- | Re-compilation of ECD with BuiltinCasing enabled
-module Preview.Ecd (ecdCode) where
+-- | Re-compilation of Fibonacci (naive) with BuiltinCasing enabled
+module Compiled.Fibonacci (fibonacciCode) where
 
-import Ecd (ecd)
+import Fibonacci (fibonacci)
 import PlutusTx
 import PlutusTx.Prelude
 
-ecdCode :: CompiledCode (Integer -> Integer -> Integer)
-ecdCode = $$(PlutusTx.compile [||ecd||])
+fibonacciCode :: CompiledCode (Integer -> Integer)
+fibonacciCode = $$(PlutusTx.compile [||fibonacci||])
