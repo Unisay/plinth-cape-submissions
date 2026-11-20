@@ -25,15 +25,15 @@
      40-44     58343
    Re-sweep after structural changes.
 
-   The PREVIEW build (datatypes=BuiltinCasing + dropList skip emission)
+   The BUILTIN_CASING build (datatypes=BuiltinCasing + dropList skip emission)
    inverts the tradeoff: builtin casing needs no inliner-driven matcher
-   repair, so a raised budget only duplicates code. Swept separately (preview
+   repair, so a raised budget only duplicates code. Swept separately (PV11
    evaluator, happy-path fee):
      budget    fee
      1-16      48971   <- optimum plateau, default included (kept 12 for
      20        51119      symmetry with the prod branch; the pragma is inert
      24        51201      here. -834 vs the earlier equalsData lookupE 49805) -}
-#ifdef PREVIEW
+#ifdef BUILTIN_CASING
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=12 #-}
 #else
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=24 #-}
