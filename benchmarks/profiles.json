@@ -1,8 +1,14 @@
 {
   "schema": 2,
   "cape": {
-    "revision": "b6820b3649d5106306f139a76eb0fd1c43dccfe4",
+    "revision": "b88d0d5d0664015b5b1378d6bd3e3fafec55c75a",
     "suites": {
+      "ecd": "c74f19a1f76a88dfccd211b278a36a8489ab06bc5a2f0022468c5f34d23a6787",
+      "factorial_naive_recursion": "b1e2435be3d9f0d3d053bb687a2c67c033b171429eb87ef1343ecdf4f9b54744",
+      "fibonacci": "bc012ca3251b3c8399fb3904ffba3ba4ab7e16f9ef0090ff7ae37ee6b20ea209",
+      "fibonacci_naive_recursion": "4c0a9b92408c38d987ec800622df69749834917a4e313274f232a467fa7cd1e4",
+      "htlc": "0617f5707ffc8aa80fcfe2a77c5c891fd88f1129b3ba60e667f1cb72bcab80cd",
+      "linear_vesting": "848fff7ce6d733cf25fb5d2b29b52a5e197bdfb270efd5f0ed905f973964ae1e",
       "two_party_escrow": "43a389015489acc583c45949fd537865cc1b5d9a54495dc0acefe1880a136143"
     }
   },
@@ -19,7 +25,17 @@
       ],
       "compiler": "ghc-9.6.7",
       "plutus_version": "1.71.0.0",
-      "suites": []
+      "suites": [
+        "ecd",
+        "factorial_naive_recursion",
+        "fibonacci",
+        "fibonacci_naive_recursion",
+        "htlc",
+        "linear_vesting"
+      ],
+      "exclusions": {
+        "two_party_escrow": "This branch implements revision 1; the CAPE suite exercises revision 2."
+      }
     },
     "plinth-1.45": {
       "builds": [
@@ -34,24 +50,34 @@
       "compiler": "ghc-9.6.7",
       "plutus_version": "1.45.0.0",
       "suites": [
+        "ecd",
+        "factorial_naive_recursion",
+        "fibonacci",
+        "fibonacci_naive_recursion",
+        "htlc",
+        "linear_vesting",
         "two_party_escrow"
       ]
     },
     "plinth-1.61": {
       "builds": [
         {
-          "name": "preview",
+          "name": "default",
           "arguments": [
-            "--project-file=cabal.project.preview",
             "run",
-            "--flags=preview",
-            "plinth-submissions-preview"
+            "plinth-submissions"
           ]
         }
       ],
       "compiler": "ghc-9.6.7",
       "plutus_version": "1.61.0.0",
       "suites": [
+        "ecd",
+        "factorial_naive_recursion",
+        "fibonacci",
+        "fibonacci_naive_recursion",
+        "htlc",
+        "linear_vesting",
         "two_party_escrow"
       ]
     },
@@ -65,10 +91,10 @@
           ]
         },
         {
-          "name": "preview",
+          "name": "builtincasing",
           "arguments": [
             "run",
-            "--flags=preview",
+            "--flags=builtincasing",
             "plinth-submissions"
           ]
         }
@@ -76,6 +102,12 @@
       "compiler": "ghc-9.6.7",
       "plutus_version": "1.64.0.0",
       "suites": [
+        "ecd",
+        "factorial_naive_recursion",
+        "fibonacci",
+        "fibonacci_naive_recursion",
+        "htlc",
+        "linear_vesting",
         "two_party_escrow"
       ]
     },
@@ -89,10 +121,10 @@
           ]
         },
         {
-          "name": "preview",
+          "name": "builtincasing",
           "arguments": [
             "run",
-            "--flags=preview",
+            "--flags=builtincasing",
             "plinth-submissions"
           ]
         }
@@ -100,6 +132,12 @@
       "compiler": "ghc-9.6.7",
       "plutus_version": "1.65.0.0",
       "suites": [
+        "ecd",
+        "factorial_naive_recursion",
+        "fibonacci",
+        "fibonacci_naive_recursion",
+        "htlc",
+        "linear_vesting",
         "two_party_escrow"
       ]
     },
@@ -116,6 +154,12 @@
       "compiler": "ghc-9.6.7",
       "plutus_version": "1.67.0.0",
       "suites": [
+        "ecd",
+        "factorial_naive_recursion",
+        "fibonacci",
+        "fibonacci_naive_recursion",
+        "htlc",
+        "linear_vesting",
         "two_party_escrow"
       ]
     },
@@ -132,6 +176,12 @@
       "compiler": "ghc-9.6.7",
       "plutus_version": "1.71.0.0",
       "suites": [
+        "ecd",
+        "factorial_naive_recursion",
+        "fibonacci",
+        "fibonacci_naive_recursion",
+        "htlc",
+        "linear_vesting",
         "two_party_escrow"
       ]
     }

@@ -110,6 +110,18 @@ def cape_measure(config, suites, checkout, results):
     return executable, tests
 
 
+def check_coverage(outputs, suites, exclusions):
+    emitted = {PurePosixPath(path).parts[1] for paths in outputs.values() for path in paths}
+    required = set(suites)
+    require(all(isinstance(reason, str) and reason.strip() for reason in exclusions.values()),
+            "Every suite exclusion needs a reason")
+    require(not required.intersection(exclusions), "A required suite cannot also be excluded")
+    missing = required - emitted
+    require(not missing, f"No emitted artifact for configured suites: {sorted(missing)}")
+    uncovered = emitted - required - exclusions.keys()
+    require(not uncovered, f"No suite or exclusion for emitted scenarios: {sorted(uncovered)}")
+
+
 def run(args):
     started = time.monotonic()
     source, results = args.source.resolve(), args.results.resolve()
@@ -148,7 +160,6 @@ def run(args):
                 measure, suites = evaluator
                 for scenario, suite in suites.items():
                     artifacts = [path for path in actual[name] if PurePosixPath(path).parts[1] == scenario]
-                    require(artifacts, f"No artifact for CAPE suite {scenario} in {name}")
                     for relative in artifacts:
                         output = results / "evaluations" / name / relative
                         output.parent.mkdir(parents=True, exist_ok=True)
@@ -157,6 +168,7 @@ def run(args):
                                 source, output.with_suffix(".log"))
                         tested.append(name + "/" + relative)
             print(f"{name}: {len(actual[name])} artifacts, {timings[name]}s", flush=True)
+    check_coverage(actual, profile["suites"], profile.get("exclusions", {}))
     summary = {"base": args.branch, "source_revision": git(source, "rev-parse", "HEAD"),
                "build_seconds": timings, "outputs": actual,
                "total_seconds": round(time.monotonic() - started, 3),

@@ -42,6 +42,17 @@ class CIContract(unittest.TestCase):
         with self.assertRaisesRegex(ci.CheckError, "No CI profile"):
             ci.configuration("unknown-compiler")
 
+    def test_suite_coverage_across_builds(self):
+        outputs = {"default": ["submissions/one/c/a.uplc"], "casing": ["submissions/two/c/b.uplc"]}
+        ci.check_coverage(outputs, ["one", "two"], {})
+        with self.assertRaisesRegex(ci.CheckError, "No emitted artifact"):
+            ci.check_coverage(outputs, ["one", "two", "three"], {})
+        with self.assertRaisesRegex(ci.CheckError, "No suite or exclusion"):
+            ci.check_coverage(outputs, ["one"], {})
+        ci.check_coverage(outputs, ["one"], {"two": "Older contract"})
+        with self.assertRaisesRegex(ci.CheckError, "needs a reason"):
+            ci.check_coverage(outputs, ["one"], {"two": ""})
+
     def test_failed_build_is_never_success(self):
         with self.assertRaisesRegex(ci.CheckError, "Command failed"):
             ci.command(["python3", "-c", "raise SystemExit(7)"], self.root, self.root / "build.log")
