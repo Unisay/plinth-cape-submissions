@@ -16,14 +16,9 @@
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:remove-trace #-}
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:target-version=1.1.0 #-}
 
-module FibonacciIterative (fibonacciIterativeCode, fibonacciIterative) where
+module FibonacciIterative (fibonacciIterative) where
 
-import PlutusTx
 import PlutusTx.Prelude
-
--- | Compiled iterative fibonacci function
-fibonacciIterativeCode :: CompiledCode (Integer -> Integer)
-fibonacciIterativeCode = $$(PlutusTx.compile [||fibonacciIterative||])
 
 {-# INLINEABLE fibonacciIterative #-}
 fibonacciIterative :: Integer -> Integer

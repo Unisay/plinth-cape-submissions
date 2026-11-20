@@ -7,12 +7,12 @@
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:target-version=1.1.0 #-}
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:datatypes=BuiltinCasing #-}
 
--- | Re-compilation of FibonacciIterative with BuiltinCasing enabled
-module Preview.FibonacciIterative (fibonacciIterativeCode) where
+-- | Re-compilation of TwoPartyEscrow with BuiltinCasing enabled
+module Compiled.TwoPartyEscrow (twoPartyEscrowValidatorCode) where
 
-import FibonacciIterative (fibonacciIterative)
 import PlutusTx
 import PlutusTx.Prelude
+import TwoPartyEscrow (twoPartyEscrowValidator)
 
-fibonacciIterativeCode :: CompiledCode (Integer -> Integer)
-fibonacciIterativeCode = $$(PlutusTx.compile [||fibonacciIterative||])
+twoPartyEscrowValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
+twoPartyEscrowValidatorCode = $$(PlutusTx.compile [||twoPartyEscrowValidator||])

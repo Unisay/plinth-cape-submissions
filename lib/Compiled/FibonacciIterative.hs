@@ -7,12 +7,12 @@
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:target-version=1.1.0 #-}
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:datatypes=BuiltinCasing #-}
 
--- | Re-compilation of Fibonacci (naive) with BuiltinCasing enabled
-module Preview.Fibonacci (fibonacciCode) where
+-- | Re-compilation of FibonacciIterative with BuiltinCasing enabled
+module Compiled.FibonacciIterative (fibonacciIterativeCode) where
 
-import Fibonacci (fibonacci)
+import FibonacciIterative (fibonacciIterative)
 import PlutusTx
 import PlutusTx.Prelude
 
-fibonacciCode :: CompiledCode (Integer -> Integer)
-fibonacciCode = $$(PlutusTx.compile [||fibonacci||])
+fibonacciIterativeCode :: CompiledCode (Integer -> Integer)
+fibonacciIterativeCode = $$(PlutusTx.compile [||fibonacciIterative||])
