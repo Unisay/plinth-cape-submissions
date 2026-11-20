@@ -37,29 +37,29 @@ main = do
     "submissions/ecd/Plinth_1.45.0.0_Unisay/ecd.uplc"
     ecdCode
   writeCodeToFile
-    "submissions/fibonacci_naive_recursion/Plinth_1.45.0.0_Unisay/fibonacci.uplc"
+    "submissions/fibonacci_naive_recursion/Plinth_1.45.0.0_Unisay/fibonacci_naive_recursion.uplc"
     fibonacciCode
   writeCodeToFile
     "submissions/fibonacci/Plinth_1.45.0.0_Unisay/fibonacci.uplc"
     fibonacciIterativeCode
   writeCodeToFile
-    "submissions/factorial_naive_recursion/Plinth_1.45.0.0_Unisay/factorial.uplc"
+    "submissions/factorial_naive_recursion/Plinth_1.45.0.0_Unisay/factorial_naive_recursion.uplc"
     factorialCode
   writeCodeToFile
-    "submissions/linear_vesting/Plinth_1.45.0.0_Unisay/linear_vesting.uplc"
+    "submissions/linear_vesting/Plinth_1.45.0.0_Unisay_plain/linear_vesting.uplc"
     linearVestingValidatorCode
   writeCodeToFile
-    "submissions/linear_vesting/Plinth_1.45.0.0_Unisay_monadic/linear_vesting.uplc"
+    "submissions/linear_vesting/Plinth_1.45.0.0_Unisay/linear_vesting.uplc"
     LvMonadic.linearVestingValidatorCode
   writeCodeToFile
-    "submissions/htlc/Plinth_1.45.0.0_Unisay/htlc.uplc"
+    "submissions/htlc/Plinth_1.45.0.0_Unisay_asdata/htlc.uplc"
     htlcValidatorCode
   writeCodeToFile
-    "submissions/htlc/Plinth_1.45.0.0_Unisay_monadic/htlc.uplc"
+    "submissions/htlc/Plinth_1.45.0.0_Unisay/htlc.uplc"
     Monadic.htlcValidatorCode
   writeCodeToFile
-    "submissions/two_party_escrow/Plinth_1.45.0.0_Unisay/two_party_escrow.uplc"
+    "submissions/two_party_escrow/Plinth_1.45.0.0_Unisay_plain/two_party_escrow.uplc"
     twoPartyEscrowValidatorCode
   writeCodeToFile
-    "submissions/two_party_escrow/Plinth_1.45.0.0_Unisay_monadic/two_party_escrow.uplc"
+    "submissions/two_party_escrow/Plinth_1.45.0.0_Unisay/two_party_escrow.uplc"
     TpeMonadic.twoPartyEscrowValidatorCode
