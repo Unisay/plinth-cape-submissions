@@ -33,7 +33,7 @@ jobs:
         with:
           repository: Unisay/plinth-cape-submissions
           # Updated only after the corresponding tools commit exists.
-          ref: 5fc41e9fe47a0f4fee6dfb23fe77f7361b4825c6
+          ref: 643cab83a1e1245d2a30eb91357201e30cac4b44
           path: tools
           persist-credentials: false
 
