@@ -8,7 +8,7 @@ Plinth (PlutusTx) source for the benchmark scenarios measured by
 [UPLC-CAPE](https://github.com/IntersectMBO/UPLC-CAPE). The `plinth-submissions`
 executable pretty-prints each scenario's `CompiledCode` and writes one `.uplc`
 artefact per scenario **into a sibling UPLC-CAPE checkout** at
-`<CAPE_REPO>/submissions/<scenario>/Plinth_<ver>_Unisay[_builtincasing]/<file>.uplc`.
+`<CAPE_REPO>/submissions/<scenario>/Plinth_<ver>_Unisay[_<variant>]/<file>.uplc`.
 There are no tests in this repo — correctness is verified by UPLC-CAPE's
 `cape submission measure` against the committed `.uplc` files.
 
@@ -30,36 +30,16 @@ nix develop
 
 # CAPE_REPO must be set (typically via .envrc.local); commands abort otherwise.
 
-# Production submission ( -> Plinth_1.64.0.0_Unisay/ )
 cabal run plinth-submissions
 
-# Preview submission, BuiltinCasing datatypes ( -> Plinth_1.64.0.0_Unisay_builtincasing/ )
-cabal run --flags=preview plinth-submissions
+cabal run --flags=builtincasing plinth-submissions
 
 # Formatting (runs fourmolu, cabal-fmt, nixfmt, prettier, shfmt, pretty-uplc)
 treefmt
 ```
 
-The `preview` cabal flag does two things in lockstep: passes
-`-fplugin-opt Plinth.Plugin:datatypes=BuiltinCasing` to the library, and sets
-the `PREVIEW` CPP define in `plinth-submissions-app/Main.hs` so writes are
-redirected to the `*_builtincasing` directory. Don't toggle one without the
-other — they're paired in `plinth-cape-submissions.cabal`.
-
-## Branch model (important)
-
-Three long-lived branches, each producing byte-identical UPLC for a specific
-Plinth release that's referenced from UPLC-CAPE's per-scenario
-`source/README.md`:
-
-- `main` — Plinth **1.64.0.0**. Preview is a cabal flag, not a parallel tree.
-- `plinth-1.45` — frozen at 1.45.0.0; has a parallel `lib/Preview/` tree.
-- `plinth-1.61` — frozen at 1.61.0.0; uses `cabal.project.preview` +
-  `plinth-submissions-preview` executable.
-
-Build invocations differ per branch — consult the branch's README before
-running. **Do not "modernize" the older branches**: their job is to keep
-reproducing the exact UPLC that UPLC-CAPE pins by commit hash.
+Each compiler branch pins its own Plinth version. This branch builds with
+Plinth 1.64.0.0. Both invocations write directly to the CAPE rows they supply.
 
 ## Code layout
 
@@ -98,11 +78,7 @@ the public contract of the submission.
 ## Workflow for landing a change
 
 1. Edit `lib/<Scenario>.hs` (and/or its `Fixture.hs`).
-2. `cabal run plinth-submissions` (and the `--flags=preview` variant where the
-   target row needs the casing build) — confirm new `.uplc` lands in the
-   sibling UPLC-CAPE checkout. UPLC-CAPE retired the preview track, so the
-   casing build no longer has a `*_builtincasing` row of its own; the target
-   row's `source/README.md` says which build it wants.
+2. Run both builds from the README and inspect their CAPE outputs.
 3. In UPLC-CAPE: `cape submission measure --all` to refresh `metrics.json`.
 4. Open a PR against UPLC-CAPE with the new `.uplc`, updated `metrics.json`,
    and the matching `source/README.md` commit pointer back to this repo.

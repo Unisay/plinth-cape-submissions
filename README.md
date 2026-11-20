@@ -5,54 +5,17 @@ Plinth (PlutusTx) source for benchmark scenarios measured by
 artefacts that are committed into a sibling `UPLC-CAPE` checkout under
 `submissions/<scenario>/Plinth_<ver>_Unisay/`.
 
-## Branches
-
-- **`main`** — Plinth 1.64.0.0. Preview (BuiltinCasing) is a cabal flag,
-  not a parallel source tree. Production writes to
-  `Plinth_1.64.0.0_Unisay/`; preview writes to
-  `Plinth_1.64.0.0_Unisay_builtincasing/`.
-- **`plinth-1.45`** — frozen at Plinth 1.45.0.0 with the original
-  parallel `lib/Preview/` tree. Produces byte-identical UPLC for every
-  `Plinth_1.45.0.0_Unisay/*.uplc` currently in UPLC-CAPE.
-- **`plinth-1.61`** — same shape, frozen at the source state that
-  produces byte-identical UPLC for every `Plinth_1.61.0.0_Unisay/*.uplc`.
-
-Each scenario's `source/README.md` in UPLC-CAPE pins a specific commit on
-one of these branches.
-
-UPLC-CAPE has since retired the preview track: every `*_Unisay_builtincasing`
-directory was deleted and those artefacts moved under the plain directory
-name. Nothing on this branch changed, so a `_builtincasing` path above is where the
-build *writes* locally, not where the artefact *lives* in UPLC-CAPE, and which
-of the two builds feeds a given submission is a per-row fact rather than a rule.
-Read that row's own `source/README.md`, which names the command and the output
-path its pinned commit produces.
-
 ## Build
 
-A UPLC-CAPE checkout is required because `.uplc` outputs are written into
-it. Point `CAPE_REPO` at that checkout — the build aborts if the variable
-is unset. The recommended place is `.envrc.local` (gitignored), e.g.:
-
-```sh
-export CAPE_REPO="$HOME/src/UPLC-CAPE"
-```
+Each compiler branch pins its own Plinth version. This branch builds with
+Plinth 1.64.0.0. Both invocations write directly to the CAPE rows they supply.
 
 ```sh
 nix develop
-
-# main (Plinth 1.64.0.0)
-cabal run plinth-submissions                      # production
-cabal run --flags=preview plinth-submissions      # preview
-
-# plinth-1.45 (production line, no preview)
+export CAPE_REPO="$HOME/src/UPLC-CAPE"
 cabal run plinth-submissions
-
-# plinth-1.61 (preview line, parallel project file)
-cabal run --project-file=cabal.project.preview -f preview plinth-submissions-preview
+cabal run --flags=builtincasing plinth-submissions
 ```
-
-Missing destination directories are created automatically.
 
 ## Workflow
 
@@ -82,6 +45,4 @@ change the protocol rules.
 
 Use the compiler and build invocation pinned on this branch. The escrow
 changes retain its existing plugin options and inliner budgets; they do
-not retune the compiler. Local output directory suffixes such as
-`_monadic`, `_builtincasing` and `_preview` remain build-specific and may
-differ from the corresponding CAPE submission directory.
+not retune the compiler.
