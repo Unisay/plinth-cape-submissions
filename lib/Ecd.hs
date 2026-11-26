@@ -16,14 +16,9 @@
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:remove-trace #-}
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:target-version=1.1.0 #-}
 
-module Ecd (ecdCode, ecd) where
+module Ecd (ecd) where
 
-import PlutusTx
 import PlutusTx.Prelude
-
--- | Compiled ECD (Euclidean Common Divisor) function
-ecdCode :: CompiledCode (Integer -> Integer -> Integer)
-ecdCode = $$(PlutusTx.compile [||ecd||])
 
 {-# INLINEABLE ecd #-}
 ecd :: Integer -> Integer -> Integer

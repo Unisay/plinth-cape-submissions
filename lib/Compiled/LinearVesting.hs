@@ -7,12 +7,12 @@
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:target-version=1.1.0 #-}
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:datatypes=BuiltinCasing #-}
 
--- | Re-compilation of TwoPartyEscrow with BuiltinCasing enabled
-module Preview.TwoPartyEscrow (twoPartyEscrowValidatorCode) where
+-- | Re-compilation of LinearVesting with BuiltinCasing enabled
+module Compiled.LinearVesting (linearVestingValidatorCode) where
 
 import PlutusTx
 import PlutusTx.Prelude
-import TwoPartyEscrow (twoPartyEscrowValidator)
+import LinearVesting (linearVestingValidator)
 
-twoPartyEscrowValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
-twoPartyEscrowValidatorCode = $$(PlutusTx.compile [||twoPartyEscrowValidator||])
+linearVestingValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
+linearVestingValidatorCode = $$(PlutusTx.compile [||linearVestingValidator||])

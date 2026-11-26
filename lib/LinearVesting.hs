@@ -222,9 +222,3 @@ spendingDatum :: ScriptInfo -> VestingDatum
 spendingDatum = \case
   SpendingScript _ (Just datum) -> unsafeFromBuiltinData (getDatum datum)
   _ -> traceError "Expected SpendingScript with datum"
-
--- NOTE: CompiledCode splice moved to plinth-submissions-app/Main.hs
--- as a workaround for PlutusTx plugin bug: having $$(compile ...) here
--- (without BuiltinCasing) prevents cross-library re-compilation with
--- BuiltinCasing in Preview.LinearVesting.
--- See: https://github.com/IntersectMBO/plutus/issues/XXXX
