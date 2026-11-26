@@ -24,17 +24,17 @@ and no longer wins. Re-sweep after structural changes.
   fee      32 068   30 814  28 430  28 376  29 875  34 840
                                     ^ optimum (Δ −3 692 vs default)
 
-The PREVIEW build (datatypes=BuiltinCasing + dropList skip emission)
+The BUILTIN_CASING build (datatypes=BuiltinCasing + dropList skip emission)
 inverts the tradeoff: builtin casing keeps the matchers cheap without
 inliner-driven repair, so a raised budget only duplicates code — at 32
 the artifact doubles in size (591 -> 1181 B) and the fee follows.
-Swept separately (preview evaluator, same objective):
+Swept separately (PV11 evaluator, same objective):
 
   budget   default(1)–4  8       12–24    32      48
   fee      24 463        23 988  23 830   31 850  32 765
                                  ^ optimum (chosen 12; Δ −633 vs default)
 -}
-#ifdef PREVIEW
+#ifdef BUILTIN_CASING
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=12 #-}
 #else
 {-# OPTIONS_GHC -fplugin-opt Plinth.Plugin:inline-unconditional-growth=32 #-}

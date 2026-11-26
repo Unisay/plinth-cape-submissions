@@ -1,4 +1,4 @@
--- CPP gates 'skips' (a PV11-builtin step) to the PREVIEW build: the name
+-- CPP gates 'skips' (a PV11-builtin step) to the BUILTIN_CASING build: the name
 -- does not exist in production builds, so no production splice can reach
 -- the dropList builtin even by accident.
 {-# LANGUAGE CPP #-}
@@ -25,7 +25,7 @@ module Plinth.Decoder (
   pureDecoder,
   fieldRaw,
   skip,
-#ifdef PREVIEW
+#ifdef BUILTIN_CASING
   skips,
 #endif
   guardHere,
@@ -39,7 +39,7 @@ import PlutusTx.Builtins.Internal qualified as BI
 import PlutusTx.Prelude (
   Bool (False, True),
   BuiltinString,
-#ifdef PREVIEW
+#ifdef BUILTIN_CASING
   Integer,
 #endif
   traceError,
@@ -117,11 +117,11 @@ fieldRaw = Decoder \s k -> k (BI.head s) s
 skip :: Decoder ()
 skip = Decoder \s k -> k () (wrapTail s)
 
-#ifdef PREVIEW
+#ifdef BUILTIN_CASING
 
 {- | Advance the cursor @n@ fields in ONE @dropList@ call. @dropList@ is a
 batch-6 builtin (PlutusV3 from the van Rossem protocol version), so this
-step exists only in the PREVIEW build — production code cannot even name
+step exists only in the BUILTIN_CASING build — production code cannot even name
 it, and the production build of "Plinth.Decoder.Named" unrolls the gap
 into 'skip' steps instead. Measured against @tailList@ chains (see
 Note [Emitting dropList for wide gaps] in "Plinth.Decoder.Named"): one

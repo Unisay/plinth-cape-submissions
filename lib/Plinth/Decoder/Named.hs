@@ -1,5 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
--- CPP selects the skip-emission strategy: the PREVIEW build compiles a
+-- CPP selects the skip-emission strategy: the BUILTIN_CASING build compiles a
 -- 3-or-more-field cursor gap to ONE @dropList@ call (a batch-6 builtin,
 -- not yet on mainnet); the production build unrolls every gap into
 -- @tailList@ steps. See Note [Emitting dropList for wide gaps].
@@ -100,7 +100,7 @@ import Plinth.Decoder (
   fieldRaw,
   pureDecoder,
   skip,
-#ifdef PREVIEW
+#ifdef BUILTIN_CASING
   skips,
 #endif
   thenDecoder,
@@ -317,7 +317,7 @@ needs no per-axis compromise.
 
 @dropList@ is a batch-6 builtin — PlutusV3 accepts it only from the
 van Rossem protocol version, which is not on mainnet — so the emission is
-gated to the PREVIEW build (same track as @datatypes=BuiltinCasing@).
+gated to the BUILTIN_CASING build (same track as @datatypes=BuiltinCasing@).
 The production build keeps the pure @tailList@ induction and its
 artifacts stay byte-identical.
 
@@ -334,7 +334,7 @@ the plugin never benefits from.
 class SkipsTo p where
   skipsThen :: Decoder a -> Decoder a
 
-#ifdef PREVIEW
+#ifdef BUILTIN_CASING
 
 instance SkipsTo Z where
   skipsThen d = d
@@ -541,7 +541,7 @@ instance
 class Drops p where
   drops :: BI.BuiltinList BuiltinData -> BI.BuiltinList BuiltinData
 
-#ifdef PREVIEW
+#ifdef BUILTIN_CASING
 
 instance Drops Z where
   drops s = s
