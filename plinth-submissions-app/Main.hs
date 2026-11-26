@@ -3,11 +3,7 @@
 {-# OPTIONS_GHC -fplugin PlutusTx.Plugin #-}
 {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:target-version=1.1.0 #-}
 
-{- | Generator for the production (Plinth 1.45) submission artefacts.
-Writes only the 1.45 @.uplc@ paths. The preview (Plinth 1.61) generator
-lives in @plinth-submissions-preview-app/Main.hs@ and uses a separate
-cabal project, so neither build can accidentally overwrite the other.
--}
+-- | Generate the Plinth 1.45 submissions.
 module Main (main) where
 
 import Prelude
@@ -28,10 +24,7 @@ import PlutusTx.Prelude (BuiltinUnit)
 import TwoPartyEscrow (twoPartyEscrowValidatorCode)
 import TwoPartyEscrow.Monadic qualified as TpeMonadic
 
--- Compile splices live here (not in HTLC.hs / LinearVesting.hs) as a workaround
--- for a PlutusTx plugin interaction: having @$$(compile ...)@ in the source
--- module without BuiltinCasing blocks cross-library recompilation with
--- BuiltinCasing in the corresponding Preview.* module.
+-- Keep these splices at the executable boundary to reproduce the published UPLC.
 linearVestingValidatorCode :: CompiledCode (BuiltinData -> BuiltinUnit)
 linearVestingValidatorCode = $$(PlutusTx.compile [||linearVestingValidator||])
 
@@ -44,29 +37,29 @@ main = do
     "submissions/ecd/Plinth_1.45.0.0_Unisay/ecd.uplc"
     ecdCode
   writeCodeToFile
-    "submissions/fibonacci_naive_recursion/Plinth_1.45.0.0_Unisay/fibonacci.uplc"
+    "submissions/fibonacci_naive_recursion/Plinth_1.45.0.0_Unisay/fibonacci_naive_recursion.uplc"
     fibonacciCode
   writeCodeToFile
     "submissions/fibonacci/Plinth_1.45.0.0_Unisay/fibonacci.uplc"
     fibonacciIterativeCode
   writeCodeToFile
-    "submissions/factorial_naive_recursion/Plinth_1.45.0.0_Unisay/factorial.uplc"
+    "submissions/factorial_naive_recursion/Plinth_1.45.0.0_Unisay/factorial_naive_recursion.uplc"
     factorialCode
   writeCodeToFile
-    "submissions/linear_vesting/Plinth_1.45.0.0_Unisay/linear_vesting.uplc"
+    "submissions/linear_vesting/Plinth_1.45.0.0_Unisay_plain/linear_vesting.uplc"
     linearVestingValidatorCode
   writeCodeToFile
-    "submissions/linear_vesting/Plinth_1.45.0.0_Unisay_monadic/linear_vesting.uplc"
+    "submissions/linear_vesting/Plinth_1.45.0.0_Unisay/linear_vesting.uplc"
     LvMonadic.linearVestingValidatorCode
   writeCodeToFile
-    "submissions/htlc/Plinth_1.45.0.0_Unisay/htlc.uplc"
+    "submissions/htlc/Plinth_1.45.0.0_Unisay_asdata/htlc.uplc"
     htlcValidatorCode
   writeCodeToFile
-    "submissions/htlc/Plinth_1.45.0.0_Unisay_monadic/htlc.uplc"
+    "submissions/htlc/Plinth_1.45.0.0_Unisay/htlc.uplc"
     Monadic.htlcValidatorCode
   writeCodeToFile
-    "submissions/two_party_escrow/Plinth_1.45.0.0_Unisay/two_party_escrow.uplc"
+    "submissions/two_party_escrow/Plinth_1.45.0.0_Unisay_plain/two_party_escrow.uplc"
     twoPartyEscrowValidatorCode
   writeCodeToFile
-    "submissions/two_party_escrow/Plinth_1.45.0.0_Unisay_monadic/two_party_escrow.uplc"
+    "submissions/two_party_escrow/Plinth_1.45.0.0_Unisay/two_party_escrow.uplc"
     TpeMonadic.twoPartyEscrowValidatorCode
