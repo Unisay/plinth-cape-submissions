@@ -1,0 +1,21 @@
+name: UPLC CI
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      base:
+        description: Branch profile (blank uses the selected branch)
+        type: string
+        required: false
+permissions:
+  contents: read
+concurrency:
+  group: uplc-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  uplc:
+    name: UPLC
+    uses: Unisay/plinth-cape-submissions/.github/workflows/uplc-check.yml@main
+    with:
+      base: ${{ github.base_ref || inputs.base || github.ref_name }}
